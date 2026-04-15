@@ -1,0 +1,2101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RayGain Physiotherapy Clinic</title>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .error-text { color: #b00020; font-size: 0.9rem; margin-top: 4px; display: none; }
+        .error-text.is-visible { display: block; }
+        .input-error {
+            border-color: #d32f2f !important;
+            background: #fff5f5;
+            box-shadow: 0 0 0 2px rgba(211, 47, 47, 0.12);
+        }
+        .required-asterisk { color: #d32f2f; font-weight: bold; }
+        .form-field-group { display: flex; flex-direction: column; margin-bottom: 1rem; }
+        .form-field-label { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.4rem; color: #333; }
+        .slot-error {
+            border: 1px solid #d32f2f;
+            background: #fff5f5;
+            padding: 8px;
+            border-radius: 8px;
+        }
+        .booking-calendar-wrap {
+            border: 1px solid #d5dfe9;
+            border-radius: 14px;
+            padding: 14px;
+            background: linear-gradient(180deg, #f7fbff 0%, #eef6ff 100%);
+            width: 100%;
+        }
+        .booking-calendar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            gap: 8px;
+        }
+        .booking-calendar-nav {
+            border: 1px solid #cfd8e3;
+            background: #fff;
+            color: #2c3e50;
+            border-radius: 8px;
+            padding: 6px 10px;
+            cursor: pointer;
+            font-weight: 700;
+        }
+        .booking-calendar-title {
+            font-size: 1.12rem;
+            font-weight: 700;
+            color: #14384b;
+            letter-spacing: 0.2px;
+        }
+        .booking-calendar-weekdays,
+        .booking-calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 8px;
+        }
+        .booking-calendar-weekdays div {
+            text-align: center;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #5b7083;
+            padding: 4px 0;
+        }
+        .booking-calendar-day {
+            min-height: 54px;
+            border: 1px solid #d7e1eb;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #2c3e50;
+            font-weight: 700;
+            font-size: 0.95rem;
+            cursor: pointer;
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-end;
+            padding: 8px;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+        }
+        .booking-calendar-day:hover {
+            transform: translateY(-1px);
+            border-color: #21bf73;
+            box-shadow: 0 8px 16px rgba(21, 101, 192, 0.12);
+        }
+        .booking-calendar-day.is-empty,
+        .booking-calendar-day:disabled {
+            background: #f3f5f7;
+            color: #9aa5b1;
+            cursor: not-allowed;
+            border-color: #e3e8ee;
+            box-shadow: none;
+        }
+        .booking-calendar-day.is-selected {
+            border-color: #0f7a4a;
+            background: linear-gradient(180deg, #58e38f 0%, #2fcf74 100%);
+            color: #073b22;
+            box-shadow: 0 0 0 3px rgba(47, 207, 116, 0.3);
+        }
+        .booking-calendar-day.is-booked {
+            background: linear-gradient(180deg, #ff6a63 0%, #ef3f37 100%);
+            border-color: #c62828;
+            color: #ffffff;
+            box-shadow: 0 0 0 2px rgba(239, 63, 55, 0.25);
+        }
+        .booking-calendar-day.is-fully-booked {
+            background: linear-gradient(180deg, #e53935 0%, #b71c1c 100%);
+            border-color: #8f1212;
+            color: #fff;
+            box-shadow: none;
+        }
+        .booking-calendar-day.is-fully-booked:hover {
+            transform: none;
+            border-color: #8f1212;
+            box-shadow: none;
+        }
+        .booking-calendar-day.is-available-saturday {
+            background: linear-gradient(180deg, #f3fff8 0%, #dff8ea 100%);
+            border-color: #2fbf71;
+            color: #0e4d2f;
+            box-shadow: 0 0 0 2px rgba(47, 191, 113, 0.18);
+        }
+        .booking-calendar-day.is-booked::after {
+            content: '';
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #ffffff;
+            position: absolute;
+            left: 8px;
+            bottom: 8px;
+        }
+        .booking-calendar-day.is-non-saturday {
+            opacity: 0.55;
+        }
+        .booking-calendar-legend {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+            font-size: 0.84rem;
+            color: #4a5968;
+        }
+        .booking-calendar-legend .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+        .booking-calendar-selected-text {
+            margin-top: 8px;
+            font-size: 0.9rem;
+            color: #135f91;
+            font-weight: 600;
+        }
+        .condition-picker {
+            position: relative;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+        .condition-search-input {
+            width: 100%;
+            border: 1px solid #2ecac8;
+            border-radius: 8px;
+            padding: 8px 34px 8px 10px;
+            font-size: 0.95rem;
+            background: #fff;
+        }
+        .condition-results {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: calc(100% + 4px);
+            background: #ffffff;
+            border: 1px solid #cfd8e3;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(13, 44, 62, 0.16);
+            max-height: 320px;
+            overflow-y: auto;
+            z-index: 1200;
+            display: none;
+            padding: 6px 0;
+        }
+        .condition-results.is-above {
+            top: auto;
+            bottom: calc(100% + 4px);
+        }
+        .condition-results.is-visible {
+            display: block;
+        }
+        .condition-group-label {
+            font-weight: 900;
+            color: #1f5fbf;
+            font-size: 1.02rem;
+            padding: 8px 18px 4px;
+            letter-spacing: 0.2px;
+        }
+        .condition-option {
+            width: 100%;
+            border: 0;
+            background: #fff;
+            text-align: left;
+            padding: 6px 18px;
+            font-size: 1rem;
+            color: #111;
+            font-weight: 400;
+            cursor: pointer;
+        }
+        .condition-option:hover,
+        .condition-option:focus {
+            background: #2a69c7;
+            color: #fff;
+            outline: none;
+        }
+        .condition-toggle {
+            position: absolute;
+            right: 12px;
+            top: 0;
+            bottom: 0;
+            margin: auto 0;
+            width: 22px;
+            height: 22px;
+            border: 0;
+            background: transparent;
+            color: #34495e;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            line-height: 1;
+        }
+        .condition-no-results {
+            padding: 8px 18px;
+            color: #5b7083;
+            font-size: 0.95rem;
+        }
+        #appointmentModal .modal-content {
+            width: min(96vw, 1080px);
+            max-width: 1080px;
+            max-height: 92vh;
+            padding: 22px 24px;
+        }
+        #appointmentModal .appointment-form-container {
+            width: 100%;
+            max-width: none;
+        }
+        #appointmentModal .form-row {
+            display: block;
+            margin: 0;
+        }
+        #appointmentModal label {
+            width: auto;
+        }
+        #appointmentModal .modal-content form,
+        #appointmentModal #appointmentForm {
+            padding-bottom: 0;
+        }
+
+        .homepage-footer {
+            margin-top: 20px;
+            padding: 14px 16px 20px;
+            text-align: center;
+            color: #d9eeee;
+            font-family: 'Roboto', sans-serif;
+        }
+
+        .homepage-footer-copy {
+            margin: 0 0 4px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            color: #dff4f4;
+        }
+
+        .homepage-footer-links {
+            margin: 0;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #c9e4e6;
+        }
+
+        .homepage-footer-links a {
+            color: #cfe8ea;
+            text-decoration: none;
+        }
+
+        .homepage-footer-links a:hover {
+            color: #ffffff;
+        }
+
+        .footer-link-quiet {
+            color: #cfe8ea !important;
+            text-decoration: none !important;
+            opacity: 0.85;
+        }
+
+        .footer-link-quiet:hover {
+            opacity: 1;
+            color: #dff4f4 !important;
+            text-decoration: none !important;
+        }
+
+        @media (max-width: 768px) {
+            .top-header {
+                top: 12px;
+                left: 14px;
+                right: 14px;
+                gap: 10px;
+                align-items: flex-start;
+            }
+
+            .header-left {
+                gap: 8px;
+            }
+
+            .header-logo-img {
+                width: 76px;
+                height: 76px;
+            }
+
+            .header-logo-text {
+                font-size: 1.45rem;
+            }
+
+            .header-nav {
+                gap: 6px;
+                flex-wrap: wrap;
+                justify-content: flex-end;
+            }
+
+            .header-nav-link,
+            .header-nav-button {
+                font-size: 0.8rem;
+                padding: 7px 10px;
+            }
+
+            .inquiries-header {
+                min-height: 84vh;
+                padding: 120px 18px 56px;
+                justify-content: center;
+            }
+
+            .hero-content-centered {
+                max-width: 100%;
+                gap: 14px;
+            }
+
+            .hero-main-title {
+                font-size: 1.9rem;
+                line-height: 1.2;
+                letter-spacing: -0.3px;
+            }
+
+            .hero-description {
+                font-size: 0.96rem;
+                line-height: 1.55;
+                max-width: 34ch;
+            }
+
+            .hero-action-btn {
+                padding: 12px 26px;
+                font-size: 0.88rem;
+                border-radius: 10px;
+            }
+
+            .services,
+            .contact {
+                padding: 20px 12px;
+                margin-top: 12px;
+                margin-bottom: 12px;
+            }
+
+            .services h2,
+            .contact h2 {
+                font-size: 1.45rem;
+                margin-bottom: 6px;
+            }
+
+            .services-subtitle,
+            .contact-subtitle {
+                font-size: 0.88rem;
+                line-height: 1.45;
+            }
+
+            .conditions-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                margin-top: 16px;
+            }
+
+            .condition-category {
+                padding: 14px 12px;
+                border-radius: 10px;
+            }
+
+            .category-header {
+                margin-bottom: 12px;
+            }
+
+            .category-header h3 {
+                font-size: 1.05rem;
+                margin-bottom: 8px;
+            }
+
+            .condition-list > li {
+                font-size: 0.86rem;
+                line-height: 1.45;
+                padding-top: 6px;
+                padding-bottom: 6px;
+            }
+
+            .sub-condition-list li {
+                font-size: 0.82rem;
+            }
+
+            .inquire-section {
+                min-height: 180px;
+                margin: 16px 12px;
+                padding: 16px 12px;
+                border-radius: 14px;
+            }
+
+            .inquire-content {
+                gap: 10px;
+                max-width: 100%;
+                align-items: center;
+                text-align: center;
+            }
+
+            .inquire-description {
+                font-size: 0.98rem;
+                line-height: 1.45;
+            }
+
+            #inquireBtn {
+                width: auto;
+                margin: 0;
+                padding: 11px 20px;
+                font-size: 0.8rem;
+                letter-spacing: 0.4px;
+                box-shadow: 0 8px 16px rgba(17, 80, 95, 0.16);
+            }
+
+            .contact-shell {
+                gap: 12px;
+            }
+
+            .contact-info-card,
+            .contact-map-card {
+                border-radius: 12px;
+                padding: 12px;
+            }
+
+            .contact-info-card h3 {
+                font-size: 1.08rem;
+                margin-bottom: 8px;
+            }
+
+            .contact-info-lead {
+                font-size: 0.84rem;
+                line-height: 1.45;
+            }
+
+            .contact-list-item {
+                padding: 8px 0;
+                gap: 8px;
+            }
+
+            #googleMapFrame {
+                height: 230px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .top-header {
+                top: 10px;
+                left: 10px;
+                right: 10px;
+                gap: 8px;
+                align-items: flex-start;
+            }
+
+            .header-logo-img {
+                width: 68px;
+                height: 68px;
+            }
+
+            .header-logo-text {
+                font-size: 1.22rem;
+            }
+
+            .header-nav {
+                margin-top: 14px;
+            }
+
+            .header-nav-link,
+            .header-nav-button {
+                font-size: 0.72rem;
+                padding: 6px 7px;
+            }
+
+            .inquiries-header {
+                min-height: 76vh;
+                padding: 100px 12px 36px;
+            }
+
+            .hero-main-title {
+                font-size: 1.55rem;
+            }
+
+            .hero-description {
+                font-size: 0.86rem;
+            }
+
+            .hero-action-btn {
+                width: 100%;
+                max-width: 220px;
+                padding: 11px 16px;
+                font-size: 0.78rem;
+            }
+
+            .services,
+            .contact {
+                padding: 16px 10px;
+            }
+
+            .services h2,
+            .contact h2 {
+                font-size: 1.28rem;
+            }
+
+            .condition-category {
+                padding: 12px 10px;
+            }
+
+            .condition-list > li {
+                font-size: 0.82rem;
+            }
+
+            .sub-condition-list li {
+                font-size: 0.78rem;
+            }
+
+            .inquire-section {
+                margin: 12px 10px;
+                padding: 12px 10px;
+            }
+
+            .inquire-description {
+                font-size: 0.9rem;
+            }
+
+            #inquireBtn {
+                width: 100%;
+                max-width: 220px;
+                padding: 10px 14px;
+                font-size: 0.76rem;
+            }
+
+            #googleMapFrame {
+                height: 200px;
+            }
+        }
+
+        @media (max-width: 430px) {
+            .top-header {
+                flex-direction: row;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap: 12px;
+            }
+
+            .header-left {
+                gap: 12px;
+                min-width: 0;
+                align-items: center;
+                padding-top: 0;
+            }
+
+            .header-logo-img {
+                width: 64px;
+                height: 64px;
+                flex: 0 0 auto;
+            }
+
+            .header-logo-text {
+                font-size: 1.12rem;
+                letter-spacing: 0.25px;
+                line-height: 1;
+                padding-top: 0;
+            }
+
+            .header-nav {
+                width: auto;
+                justify-content: flex-end;
+                align-items: center;
+                gap: 5px;
+                flex-wrap: nowrap;
+                margin-top: 52px;
+            }
+
+            .header-nav-link,
+            .header-nav-button {
+                flex: 0 0 auto;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                box-sizing: border-box;
+                height: 44px;
+                font-size: 0.7rem;
+                line-height: 1;
+                min-width: 64px;
+                padding: 0 10px;
+            }
+
+            .header-nav-link:nth-child(2),
+            .header-nav-button:nth-child(2) {
+                margin-left: 0;
+            }
+
+            .header-nav-button {
+                appearance: none;
+                -webkit-appearance: none;
+                border: none;
+            }
+
+            .hero-content-centered {
+                gap: 12px;
+            }
+
+            .condition-category {
+                box-shadow: 0 2px 10px rgba(68, 200, 204, 0.14);
+            }
+
+            #inquireBtn {
+                min-height: 44px;
+            }
+
+            .contact-list-item {
+                min-height: 44px;
+            }
+
+            .map-view-btn {
+                min-height: 44px;
+            }
+        }
+    </style>
+</head>
+<body class="inquiries-page">
+    <div class="inquiries-container">
+        <header class="top-header">
+            <div class="header-left">
+                <img src="images/RayGain Logo.png" alt="RayGain Logo" class="header-logo-img">
+                <span class="header-logo-text">RayGain</span>
+            </div>
+            <nav class="header-nav">
+                <a href="index.html" class="header-nav-link active">Home</a>
+                <a href="about.html" class="header-nav-link">About</a>
+                <button id="headerServicesBtn" class="header-nav-link header-nav-button">Services</button>
+            </nav>
+        </header>
+        <header class="inquiries-header">
+            <div class="hero-content-centered">
+                <h1 class="hero-main-title">Helping you move better, recover faster and alleviate your pain</h1>
+                <p class="hero-description">We are committed to giving quality care to support your recovery and help you return to your daily activities with strength and confidence.</p>
+                <button id="getCareBtn" type="button" class="hero-action-btn">GET CARE</button>
+            </div>
+        </header>
+        <section id="coreServices" class="services">
+            <div class="services-header">
+                <h2>Our Core Services</h2>
+                <p class="services-subtitle">We specialize in treating a wide range of conditions with evidence-based physiotherapy</p>
+            </div>
+            <div class="conditions-grid">
+                <div class="condition-category">
+                    <div class="category-header">
+                        <h3>Neurological Conditions</h3>
+                        <div class="category-accent"></div>
+                    </div>
+                    <ul class="condition-list">
+                        <li>Stroke (CVA)</li>
+                        <li>Spinal Cord Injury (SCI)</li>
+                        <li>Traumatic Brain Injury (TBI)</li>
+                        <li>Parkinson's Disease</li>
+                        <li>
+                            Peripheral Nerve Injuries
+                            <ul class="sub-condition-list">
+                                <li>Carpal Tunnel Syndrome</li>
+                                <li>Sciatica</li>
+                                <li>Bell's Palsy</li>
+                            </ul>
+                        </li>
+                        <li>Multiple Sclerosis</li>
+                        <li>Motor Neuron Diseases</li>
+                        <li>Other Neurological Diseases</li>
+                    </ul>
+                </div>
+                <div class="condition-category">
+                    <div class="category-header">
+                        <h3>Musculoskeletal Conditions</h3>
+                        <div class="category-accent"></div>
+                    </div>
+                    <ul class="condition-list">
+                        <li>Low back/neck pain</li>
+                        <li>Sprain / Strain Injuries</li>
+                        <li>Frozen Shoulder</li>
+                        <li>Osteoarthritis</li>
+                        <li>Rheumatoid Arthritis</li>
+                        <li>Fracture</li>
+                        <li>Scoliosis</li>
+                        <li>Amputation</li>
+                        <li>Hip Replacement</li>
+                        <li>Knee Replacement</li>
+                        <li>Ligamentous injuries</li>
+                        <li>Plantar Fascitis</li>
+                    </ul>
+                </div>
+                <div class="condition-category">
+                    <div class="category-header">
+                        <h3>Other Conditions</h3>
+                        <div class="category-accent"></div>
+                    </div>
+                    <ul class="condition-list">
+                        <li>Geriatric Care</li>
+                        <li>Deconditioning</li>
+                        <li>Ambulation Training</li>
+                        <li>Balance and Coordination Training</li>
+                        <li>Pre-operative / Post-operative Care</li>
+                        <li>Sports-related Injuries</li>
+                        <li>Cerebral Palsy</li>
+                        <li>Developmental Delay</li>
+                        <li>Muscular Dystrophy</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <div id="inquiryCtaSection" class="inquire-section">
+            <div class="inquire-content">
+                <p class="inquire-description">Click to book your appointment<br>and begin your recovery with us!</p>
+                <button id="inquireBtn">INQUIRE NOW</button>
+            </div>
+        </div>
+        <section class="contact contact-showcase">
+            <h2>Get In Touch With Us</h2>
+            <p class="contact-subtitle contact-description">Visit our clinic for walk-in consultations or book an appointment in advance.</p>
+            <div class="contact-shell">
+                <aside class="contact-info-card">
+                    <h3>Contact Information</h3>
+                    <p class="contact-info-lead">Reach us anytime. We are ready to support your recovery journey.</p>
+
+                    <div class="contact-list-item">
+                        <div class="contact-list-icon" aria-hidden="true">☎</div>
+                        <div class="contact-list-text">
+                            <a href="tel:09267403230" class="contact-link">09267403230</a>
+                        </div>
+                    </div>
+
+                    <div class="contact-list-item">
+                        <div class="contact-list-icon" aria-hidden="true">✉</div>
+                        <div class="contact-list-text">
+                            <a href="mailto:RayGain@gmail.com" class="contact-link">RayGain@gmail.com</a>
+                        </div>
+                    </div>
+
+                    <div class="contact-list-item">
+                        <div class="contact-list-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="100%" height="100%">
+                                <circle cx="12" cy="8" r="4"></circle>
+                                <path d="M 6 20 Q 6 14 12 14 Q 18 14 18 20"></path>
+                            </svg>
+                        </div>
+                        <div class="contact-list-text">
+                            <p>Jeanna M. Rayray PTRP</p>
+                        </div>
+                    </div>
+
+                    <div class="contact-list-item">
+                        <div class="contact-list-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="100%" height="100%">
+                                <path d="M 12 2 C 8 2 5 5 5 9 C 5 14 12 22 12 22 S 19 14 19 9 C 19 5 16 2 12 2 Z"></path>
+                                <circle cx="12" cy="9" r="2.5"></circle>
+                            </svg>
+                        </div>
+                        <div class="contact-list-text">
+                            <p>Barangay Butol Farmers' Association Inc., Butol Zone 3, Santiago, Ilocos Sur, Philippines</p>
+                        </div>
+                    </div>
+                </aside>
+
+                <div class="contact-map-card">
+                    <div class="map-view-switcher" role="group" aria-label="Map layer selector">
+                        <button type="button" class="map-view-btn is-active" data-mode="m">Road</button>
+                        <button type="button" class="map-view-btn" data-mode="k">Satellite</button>
+                        <button type="button" class="map-view-btn" data-mode="h">Hybrid</button>
+                    </div>
+
+                    <iframe
+                        id="googleMapFrame"
+                        title="RayGain clinic location map"
+                        loading="lazy"
+                        allowfullscreen
+                        referrerpolicy="no-referrer-when-downgrade">
+                    </iframe>
+                </div>
+            </div>
+        </section>
+
+        <script>
+            (function () {
+                const mapFrame = document.getElementById('googleMapFrame');
+                const modeButtons = document.querySelectorAll('.map-view-btn');
+                const exactAddress = "Barangay Butol Farmers' Association Inc., Butol Zone 3, Santiago, Ilocos Sur, Philippines";
+                const pinQuery = encodeURIComponent(exactAddress);
+
+                if (!mapFrame || modeButtons.length === 0) return;
+
+                const buildGoogleEmbedUrl = function (mode) {
+                    return 'https://maps.google.com/maps?q=' + pinQuery + '&t=' + mode + '&z=19&ie=UTF8&iwloc=B&output=embed';
+                };
+
+                let activeMode = 'm';
+
+                const setMode = function (mode) {
+                    activeMode = mode;
+                    mapFrame.src = buildGoogleEmbedUrl(mode);
+                    modeButtons.forEach(function (btn) {
+                        const isActive = btn.getAttribute('data-mode') === mode;
+                        btn.classList.toggle('is-active', isActive);
+                    });
+                };
+
+                setMode(activeMode);
+
+                modeButtons.forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        setMode(btn.getAttribute('data-mode'));
+                    });
+                });
+            })();
+        </script>
+        <div id="inquiryFormModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close" id="closeModal">&times;</span>
+                <form id="inquiryForm">
+                    <h2>Physiotherapy Consent Form</h2>
+                    <div class="form-row">
+                        <input type="text" name="firstName" placeholder="First Name" required>
+                        <input type="text" name="middleName" placeholder="Middle Name" required>
+                        <input type="text" name="lastName" placeholder="Last Name" required>
+                    </div>
+                    <div class="form-row">
+                        <input type="text" name="contactNumber" placeholder="Contact Number" required>
+                        <input type="email" name="email" placeholder="Gmail Address">
+                    </div>
+                    <div class="form-row">
+                        <input type="text" name="address" placeholder="Address" required>
+                        <input type="date" name="dob" required>
+                    </div>
+                    <div class="form-row">
+                        <input type="text" name="caseHistory" placeholder="Case / Condition" required>
+                    </div>
+                    <h3>Emergency Contact Information</h3>
+                    <div class="form-row">
+                        <input type="text" name="emergencyFirstName" placeholder="First Name" required>
+                        <input type="text" name="emergencyLastName" placeholder="Last Name" required>
+                    </div>
+                    <div class="form-row">
+                        <input type="email" name="emergencyEmail" placeholder="Gmail Address">
+                        <input type="text" name="emergencyContactNumber" placeholder="Contact Number" required>
+                    </div>
+                    <div class="form-row">
+                        <input type="text" name="emergencyRelation" placeholder="Relation" required>
+                    </div>
+                    <button type="submit">Submit</button>
+                </form>
+            </div>
+        </div>
+        <!-- Appointment Booking Modal -->
+        <div id="appointmentModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close" id="closeAppointmentModal">&times;</span>
+                <div class="appointment-form-container">
+                    <h2>Book Your Appointment</h2>
+                    <div class="appointment-description">
+                        <p><strong>🗓️ Appointment Availability</strong></p>
+                        <p>Our therapist Jeanna M. Rayray PTRP is available for booking appointments on <strong>Saturdays only</strong>.</p>
+                        <p>Please select a Saturday date below to secure your appointment slot.</p>
+                    </div>
+                    <form id="appointmentForm">
+                        <div class="form-row">
+                            <label for="appointmentDate">Select a Saturday Date:</label>
+                            <div class="booking-calendar-wrap">
+                                <div class="booking-calendar-header">
+                                    <button type="button" id="bookingCalendarPrevBtn" class="booking-calendar-nav" aria-label="Previous month">◀</button>
+                                    <div id="bookingCalendarTitle" class="booking-calendar-title">Calendar</div>
+                                    <button type="button" id="bookingCalendarNextBtn" class="booking-calendar-nav" aria-label="Next month">▶</button>
+                                </div>
+                                <div class="booking-calendar-weekdays">
+                                    <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+                                </div>
+                                <div id="bookingCalendarGrid" class="booking-calendar-grid"></div>
+                                <div class="booking-calendar-legend">
+                                    <span><span class="dot" style="background:#2fcf74;"></span>Available Saturday</span>
+                                    <span><span class="dot" style="background:#ef3f37;"></span>Booked Saturday</span>
+                                    <span><span class="dot" style="background:#9aa5b1;"></span>Unavailable day</span>
+                                </div>
+                                <div id="bookingCalendarSelectedText" class="booking-calendar-selected-text">No date selected yet</div>
+                            </div>
+                            <input type="date" id="appointmentDate" name="appointmentDate" required step="7" style="display:none;">
+                            <div id="appointmentDateError" class="error-text"></div>
+                        </div>
+                        <div class="form-row" id="timeSlotsContainer" style="display:none;">
+                            <label>Select Time Slot (unavailable times are disabled):</label>
+                            <div id="timeSlots" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;">
+                                <!-- time buttons injected here -->
+                            </div>
+                            <div id="appointmentTimeError" class="error-text"></div>
+                        </div>
+                        <div id="appointmentFormError" class="error-text"></div>
+                        <button type="submit" class="submit-btn">Book Appointment</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <!-- Thank You Modal -->
+        <div id="thankYouModal" class="modal" style="display: none;">
+            <div class="modal-content thank-you-content">
+                <span class="close" id="closeThankYouModal">&times;</span>
+                <div class="thank-you-message">
+                    <div id="successBooking" style="display:none;">
+                        <div style="text-align:center;padding:24px 20px;">
+                            <div style="font-size:56px;margin-bottom:20px;">🎉</div>
+                            <h2 style="color:#2ecac8;margin:0 0 16px 0;font-size:2em;font-weight:700;">Thank You for Booking!</h2>
+                            <p style="font-size:1.05em;color:#666;margin:0 0 8px 0;">Your appointment has been successfully booked.</p>
+                            <p id="appointmentConfirmation" style="font-size:1.1em;color:#2ecac8;font-weight:600;margin:16px 0;"></p>
+                            <div style="background:#e8f5f4;border-left:4px solid #2ecac8;border-radius:8px;padding:14px 16px;margin:10px 0 18px 0;text-align:left;">
+                                <p style="margin:0 0 6px 0;font-weight:700;color:#1f7f7d;font-size:1rem;">Verification Notice</p>
+                                <p style="margin:0;font-size:0.95rem;color:#2c3e50;line-height:1.5;">Please take a clear picture or screenshot of this appointment confirmation and present it at the clinic for verification.</p>
+                            </div>
+                            <p style="font-size:1em;color:#555;margin:12px 0 24px 0;font-style:italic;">We look forward to helping you on your recovery journey!</p>
+                        </div>
+                        <div style="background:linear-gradient(135deg, #fff8e1 0%, #ffe9a6 100%);border:2px solid #ffc107;border-radius:12px;padding:20px;margin:20px 0;text-align:left;box-shadow:0 4px 12px rgba(255,193,7,0.15);">
+                            <p style="margin:0 0 12px 0;font-weight:700;color:#d68000;font-size:1.1em;display:flex;align-items:center;gap:8px;"><span style="font-size:1.3em;">⚠️</span> Important Reminder:</p>
+                            <p style="margin:0;font-size:0.95rem;line-height:1.7;color:#6b5200;">If you cannot attend your scheduled appointment, please contact us to reschedule. <strong style="color:#d68000;">Arriving more than 30 minutes late will result in automatic cancellation</strong> of your reservation for that day. Thank you for your understanding.</p>
+                        </div>
+                    </div>
+                    <div id="duplicateWarning" style="display:none;">
+                        <div style="text-align:center;padding:20px;">
+                            <div style="font-size:48px;margin-bottom:16px;">📋</div>
+                            <h2 style="color:#2ecac8;margin:0 0 16px 0;font-size:1.5em;">You already Signed the Form!</h2>
+                            <p style="font-size:1.1em;color:#555;margin:12px 0 24px 0;line-height:1.6;">Please wait for your Appointment Schedule.<br/><strong>See you Soon! 💚</strong></p>
+                        </div>
+                        <div style="background:#e8f5f4;border-left:4px solid #2ecac8;border-radius:6px;padding:16px;margin:20px 0;text-align:left;">
+                            <p style="margin:0 0 12px 0;font-weight:600;color:#2ecac8;font-size:1.05em;">⚠️ Important Reminder:</p>
+                            <p style="margin:0;font-size:0.95rem;line-height:1.6;color:#333;">If you cannot attend your scheduled appointment, please contact us to reschedule. <strong>Arriving more than 30 minutes late will result in automatic cancellation</strong> of your reservation for that day. Thank you for your understanding.</p>
+                        </div>
+                    </div>
+                    <button id="doneBtn" class="done-btn">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <footer class="homepage-footer" aria-label="Homepage footer">
+            <p class="homepage-footer-copy">&copy; RayGain Physiotherapy Clinic</p>
+            <p class="homepage-footer-links">
+                <a href="#coreServices">Patient Services</a>
+                <span> | </span>
+                <a href="#inquiryCtaSection">Contact</a>
+                <span> | </span>
+                <a href="login.html" class="footer-link-quiet">Therapist Login</a>
+            </p>
+        </footer>
+    </div>
+
+    <!-- Firebase CDN (Compat version) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAL6rvtbGZoWOQxm2o3fYxvFniwKz9GpXM",
+            authDomain: "raygain-cf637.firebaseapp.com",
+            projectId: "raygain-cf637",
+            storageBucket: "raygain-cf637.firebasestorage.app",
+            messagingSenderId: "258723115236",
+            appId: "1:258723115236:web:766902037a28c178e6fcf1",
+            measurementId: "G-7DXLCJCLVE"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        // Avoid Firestore WebChannel issues (often seen as /Write/channel errors) on some networks/browsers.
+        try { db.settings({ experimentalForceLongPolling: true, useFetchStreams: false, merge: true }); } catch (e) {}
+
+        // Store inquiry data for later use
+        let currentInquiryData = null;
+        let selectedAppointmentOption = null;
+        let bookingCalendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+        let bookingCalendarSelectedDate = null;
+        let bookingCalendarBookedDates = new Set();
+        let bookingCalendarFullyBookedDates = new Set();
+
+        // Modal controls
+        const inquireBtn = document.getElementById('inquireBtn');
+        const getCareBtn = document.getElementById('getCareBtn');
+        const coreServicesSection = document.getElementById('coreServices');
+        const inquiryCtaSection = document.getElementById('inquiryCtaSection');
+        const modal = document.getElementById('inquiryFormModal');
+        const closeModal = document.getElementById('closeModal');
+        const appointmentModal = document.getElementById('appointmentModal');
+        const closeAppointmentModal = document.getElementById('closeAppointmentModal');
+        const thankYouModal = document.getElementById('thankYouModal');
+        const closeThankYouModal = document.getElementById('closeThankYouModal');
+
+        inquireBtn.onclick = function() {
+            window.location.href = 'Inquire.html';
+        };
+        if (getCareBtn && inquiryCtaSection) {
+            getCareBtn.onclick = function() {
+                inquiryCtaSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            };
+        }
+        const headerServicesBtn = document.getElementById('headerServicesBtn');
+        if (headerServicesBtn && coreServicesSection) {
+            headerServicesBtn.onclick = function() {
+                coreServicesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            };
+        }
+        closeModal.onclick = function() {
+            modal.style.display = 'none';
+        };
+        closeAppointmentModal.onclick = function() {
+            appointmentModal.style.display = 'none';
+        };
+        closeThankYouModal.onclick = function() {
+            thankYouModal.style.display = 'none';
+        };
+        window.onclick = function(event) {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+            if (event.target === appointmentModal) {
+                appointmentModal.style.display = 'none';
+            }
+            if (event.target === thankYouModal) {
+                thankYouModal.style.display = 'none';
+            }
+        };
+
+        function getOrCreateErrorEl(input) {
+            if (!input || !input.parentElement) return null;
+            const existing = input.parentElement.querySelector('.error-text');
+            if (existing) return existing;
+            const err = document.createElement('div');
+            err.className = 'error-text';
+            err.setAttribute('role', 'alert');
+            err.setAttribute('aria-live', 'assertive');
+            input.parentElement.appendChild(err);
+            return err;
+        }
+
+        function setFieldError(input, message) {
+            if (!input) return;
+            const err = getOrCreateErrorEl(input);
+            if (err) {
+                err.textContent = message || 'Invalid input';
+                err.classList.add('is-visible');
+            }
+            input.classList.add('input-error');
+        }
+
+        function clearFieldError(input) {
+            if (!input || !input.parentElement) return;
+            const err = input.parentElement.querySelector('.error-text');
+            if (err) {
+                err.textContent = '';
+                err.classList.remove('is-visible');
+            }
+            input.classList.remove('input-error');
+        }
+
+        function clearAllFieldErrors(formEl) {
+            if (!formEl) return;
+            const inputs = formEl.querySelectorAll('input, select, textarea');
+            inputs.forEach(input => clearFieldError(input));
+        }
+
+        // Handle inquiry form submission (uses age input from the form)
+        document.getElementById('inquiryForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            
+            // Validation
+            const firstName = formData.get('firstName').trim();
+            const middleName = formData.get('middleName').trim();
+            const lastName = formData.get('lastName').trim();
+            const contactNumber = formData.get('contactNumber').trim();
+            const age = formData.get('age').trim();
+            const barangay = (formData.get('barangay') || '').trim();
+            const municipality = (formData.get('municipality') || '').trim();
+            const provinceCity = (formData.get('provinceCity') || '').trim();
+            const address = [barangay, municipality, provinceCity].filter(Boolean).join(', ');
+            const rawCase = (formData.get('caseHistory') || '').trim();
+            const caseHistoryOther = (formData.get('caseHistoryOther') || '').trim();
+            const caseHistory = rawCase === 'Others' ? caseHistoryOther : rawCase;
+            const emergencyFirstName = formData.get('emergencyFirstName').trim();
+            const emergencyLastName = formData.get('emergencyLastName').trim();
+            const emergencyContactNumber = formData.get('emergencyContactNumber').trim();
+            const rawRelation = (formData.get('emergencyRelation') || '').trim();
+            const emergencyRelationOther = (formData.get('emergencyRelationOther') || '').trim();
+            const emergencyRelation = rawRelation === 'Others' ? emergencyRelationOther : rawRelation;
+
+            const firstNameInputEl = e.target.querySelector('input[name="firstName"]');
+            const middleNameInputEl = e.target.querySelector('input[name="middleName"]');
+            const lastNameInputEl = e.target.querySelector('input[name="lastName"]');
+            const contactNumberInputEl = e.target.querySelector('input[name="contactNumber"]');
+            const ageInputEl = e.target.querySelector('input[name="age"]');
+            const barangayInputEl = e.target.querySelector('input[name="barangay"]');
+            const municipalityInputEl = e.target.querySelector('input[name="municipality"]');
+            const provinceCityInputEl = e.target.querySelector('input[name="provinceCity"]');
+            const caseHistoryInputEl = e.target.querySelector('input[name="caseHistory"]');
+            const caseHistoryOtherEl = e.target.querySelector('input[name="caseHistoryOther"]');
+            const emergencyFirstNameInputEl = e.target.querySelector('input[name="emergencyFirstName"]');
+            const emergencyLastNameInputEl = e.target.querySelector('input[name="emergencyLastName"]');
+            const emergencyContactNumberInputEl = e.target.querySelector('input[name="emergencyContactNumber"]');
+            const emergencyRelationSelectEl = e.target.querySelector('select[name="emergencyRelation"]');
+            const emergencyRelationOtherEl = e.target.querySelector('input[name="emergencyRelationOther"]');
+
+            clearAllFieldErrors(e.target);
+            let firstInvalid = null;
+            const markInvalid = (input, message) => {
+                setFieldError(input, message);
+                if (!firstInvalid && input) firstInvalid = input;
+            };
+
+            if (!firstName || !/^[a-zA-Z\s]+$/.test(firstName)) {
+                markInvalid(firstNameInputEl, 'Use letters only (ex. Maria)');
+            }
+
+            if (!middleName || !/^[a-zA-Z\s]+$/.test(middleName)) {
+                markInvalid(middleNameInputEl, 'Use letters only (ex. Juan)');
+            }
+
+            if (!lastName || !/^[a-zA-Z\s]+$/.test(lastName)) {
+                markInvalid(lastNameInputEl, 'Use letters only (ex. Santos)');
+            }
+
+            if (!contactNumber || !/^09\d{9}$/.test(contactNumber)) {
+                markInvalid(contactNumberInputEl, 'Use 11 digits starting with 09 (ex. 0912 345 6789)');
+            }
+
+            if (!/^(?:100|[1-9][0-9]?)$/.test(age)) {
+                markInvalid(ageInputEl, 'Age must be 1 to 100');
+            }
+
+            if (!barangay || !/^[a-zA-Z\s]+$/.test(barangay)) {
+                markInvalid(barangayInputEl, 'Use letters only');
+            }
+
+            if (!municipality || !/^[a-zA-Z\s]+$/.test(municipality)) {
+                markInvalid(municipalityInputEl, 'Use letters only');
+            }
+
+            if (!provinceCity || !/^[a-zA-Z\s]+$/.test(provinceCity)) {
+                markInvalid(provinceCityInputEl, 'Use letters only');
+            }
+
+            if (!caseHistory) {
+                if (rawCase === 'Others') {
+                    markInvalid(caseHistoryOtherEl, 'Please specify the condition');
+                } else {
+                    markInvalid(caseHistoryInputEl, 'Please enter or choose a condition');
+                }
+            }
+
+            if (caseHistory && /[0-9]/.test(caseHistory)) {
+                markInvalid(rawCase === 'Others' ? caseHistoryOtherEl : caseHistoryInputEl, 'Letters only, no numbers');
+            }
+
+            if (!emergencyFirstName || !/^[a-zA-Z\s]+$/.test(emergencyFirstName)) {
+                markInvalid(emergencyFirstNameInputEl, 'Use letters only');
+            }
+
+            if (!emergencyLastName || !/^[a-zA-Z\s]+$/.test(emergencyLastName)) {
+                markInvalid(emergencyLastNameInputEl, 'Use letters only');
+            }
+
+            if (!emergencyContactNumber || !/^09\d{9}$/.test(emergencyContactNumber)) {
+                markInvalid(emergencyContactNumberInputEl, 'Use 11 digits starting with 09 (ex. 0912 345 6789)');
+            }
+
+            if (!emergencyRelation) {
+                if (rawRelation === 'Others') {
+                    markInvalid(emergencyRelationOtherEl, 'Please specify the relation');
+                } else {
+                    markInvalid(emergencyRelationSelectEl, 'Please select a relation');
+                }
+            }
+
+            if (emergencyRelation && !/^[a-zA-Z\s]+$/.test(emergencyRelation)) {
+                markInvalid(rawRelation === 'Others' ? emergencyRelationOtherEl : emergencyRelationSelectEl, 'Use letters only');
+            }
+
+            if (firstInvalid) {
+                firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstInvalid.focus();
+                return;
+            }
+
+            // Check for duplicate submission (same first, middle, last name)
+            try {
+                // Query all inquiries and filter client-side with case-insensitive comparison
+                const allInquiries = await db.collection('inquiries').get();
+                const firstNameLower = firstName.toLowerCase();
+                const lastNameLower = lastName.toLowerCase();
+                const middleNameLower = middleName.toLowerCase();
+                
+                const duplicateFound = allInquiries.docs.some(doc => {
+                    const docFirstName = (doc.data().firstName || '').trim().toLowerCase();
+                    const docLastName = (doc.data().lastName || '').trim().toLowerCase();
+                    const docMiddleName = (doc.data().middleName || '').trim().toLowerCase();
+                    
+                    return docFirstName === firstNameLower && 
+                           docLastName === lastNameLower && 
+                           docMiddleName === middleNameLower;
+                });
+                
+                console.log('Duplicate check result:', duplicateFound);
+                
+                if (duplicateFound) {
+                    console.log('Duplicate detected! Blocking form submission.');
+                    // Show thank you modal with duplicate message
+                    modal.style.display = 'none';
+                    document.getElementById('thankYouModal').style.display = 'block';
+                    document.getElementById('successBooking').style.display = 'none';
+                    document.getElementById('duplicateWarning').style.display = 'block';
+                    console.log('Exiting form handler due to duplicate');
+                    return;
+                }
+                
+                // Check if this is a returning patient (previously released)
+                const allPatients = await db.collection('patients').get();
+                const returningPatient = allPatients.docs.find(doc => {
+                    const data = doc.data();
+                    const docFirstName = (data.firstName || '').trim().toLowerCase();
+                    const docLastName = (data.lastName || '').trim().toLowerCase();
+                    const docMiddleName = (data.middleName || '').trim().toLowerCase();
+                    
+                    return docFirstName === firstNameLower && 
+                           docLastName === lastNameLower && 
+                           docMiddleName === middleNameLower &&
+                           data.status === 'released';
+                });
+                
+                if (returningPatient) {
+                    window.returningPatientData = returningPatient.data();
+                    window.returningPatientDocId = returningPatient.id;
+                    console.log('Returning patient detected:', returningPatient.data().patientId);
+                }
+
+                // If not found in patients, check registry for previously purged patients
+                if (!returningPatient) {
+                    const registrySnapshot = await db.collection('patientRegistry').get();
+                    const registryMatch = registrySnapshot.docs.find(doc => {
+                        const data = doc.data();
+                        const docFirstName = (data.firstName || '').trim().toLowerCase();
+                        const docLastName = (data.lastName || '').trim().toLowerCase();
+                        const docMiddleName = (data.middleName || '').trim().toLowerCase();
+                        return docFirstName === firstNameLower &&
+                               docLastName === lastNameLower &&
+                               docMiddleName === middleNameLower;
+                    });
+
+                    if (registryMatch) {
+                        window.returningPatientData = registryMatch.data();
+                        window.returningPatientDocId = null;
+                        console.log('Returning patient detected in registry:', registryMatch.data().patientId);
+                    }
+                }
+                
+                if (duplicateFound) {
+                    console.log('Duplicate detected! Blocking form submission.');
+                    // Show thank you modal with duplicate message
+                    modal.style.display = 'none';
+                    document.getElementById('thankYouModal').style.display = 'block';
+                    document.getElementById('successBooking').style.display = 'none';
+                    document.getElementById('duplicateWarning').style.display = 'block';
+                    console.log('Exiting form handler due to duplicate');
+                    return;
+                }
+            } catch (err) {
+                console.warn('Error checking duplicates:', err);
+                // Continue with submission if check fails
+            }
+
+            // Store inquiry data for later use
+            currentInquiryData = {
+                firstName: firstName,
+                middleName: middleName,
+                lastName: lastName,
+                email: formData.get('email').trim(),
+                contactNumber: contactNumber,
+                address: address,
+                barangay: barangay,
+                municipality: municipality,
+                provinceCity: provinceCity,
+                age: age,
+                caseHistory: caseHistory,
+                emergencyContactName: emergencyFirstName + ' ' + emergencyLastName,
+                emergencyContactNumber: emergencyContactNumber,
+                emergencyContactRelation: emergencyRelation,
+                emergencyContactEmail: formData.get('emergencyEmail').trim(),
+                createdAt: new Date().toISOString(),
+                status: 'pending',
+                isReturningPatient: window.returningPatientData ? true : false,
+                previousPatientId: window.returningPatientData ? window.returningPatientData.patientId : null,
+                previousPatientDocId: window.returningPatientDocId || null
+            };
+
+            // Show appointment booking modal instead of submitting immediately
+            modal.style.display = 'none';
+            appointmentModal.style.display = 'block';
+            setMinAppointmentDate();
+        });
+
+        // Function to set minimum appointment date to next Saturday
+        function setMinAppointmentDate() {
+            const dateInput = document.getElementById('appointmentDate');
+            const today = new Date();
+            const dayOfWeek = today.getDay();
+            const daysUntilSaturday = (6 - dayOfWeek + 7) % 7;
+            const nextSaturday = new Date(today);
+            nextSaturday.setDate(nextSaturday.getDate() + (daysUntilSaturday === 0 ? 7 : daysUntilSaturday));
+            
+            // Set min date to next Saturday
+            dateInput.min = nextSaturday.toISOString().split('T')[0];
+            dateInput.step = '7';
+            dateInput.value = nextSaturday.toISOString().split('T')[0];
+            bookingCalendarSelectedDate = dateInput.value;
+            bookingCalendarMonth = new Date(nextSaturday.getFullYear(), nextSaturday.getMonth(), 1);
+            initializeBookingCalendar(dateInput.value);
+            // Populate time slots for the preselected Saturday
+            try { setTimeSlotsForDate(dateInput.value); } catch(e) { /* ignore if function missing */ }
+        }
+
+        function getNextSaturdayDateString(fromDate) {
+            const base = new Date(fromDate);
+            const dayOfWeek = base.getDay();
+            const daysUntilSaturday = (6 - dayOfWeek + 7) % 7;
+            base.setDate(base.getDate() + (daysUntilSaturday === 0 ? 7 : daysUntilSaturday));
+            return base.toISOString().split('T')[0];
+        }
+
+        // Validate appointment date is a Saturday
+        function isSaturday(dateString) {
+            const date = new Date(dateString);
+            return date.getDay() === 6; // 6 = Saturday
+        }
+
+        function dateToYmdLocal(dateObj) {
+            const y = dateObj.getFullYear();
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        async function loadBookedDatesForCalendar() {
+            try {
+                const snapshot = await db.collection('appointments').get();
+                const bookedSet = new Set();
+                const fullyBookedSet = new Set();
+                const occupiedByDate = new Map();
+                const DAILY_SLOT_COUNT = 8;
+                snapshot.forEach(doc => {
+                    const data = doc.data() || {};
+                    if (data.isDeleted) return;
+                    if (!data.date) return;
+                    bookedSet.add(data.date);
+                    if (!occupiedByDate.has(data.date)) occupiedByDate.set(data.date, new Set());
+                    const timeVal = (data.time || '').toString();
+                    if (timeVal) occupiedByDate.get(data.date).add(timeVal);
+                });
+
+                occupiedByDate.forEach((timesSet, dateKey) => {
+                    if (timesSet.size >= DAILY_SLOT_COUNT) fullyBookedSet.add(dateKey);
+                });
+
+                bookingCalendarBookedDates = bookedSet;
+                bookingCalendarFullyBookedDates = fullyBookedSet;
+            } catch (err) {
+                console.warn('Failed to load booked dates for calendar:', err);
+                bookingCalendarBookedDates = new Set();
+                bookingCalendarFullyBookedDates = new Set();
+            }
+        }
+
+        function renderBookingCalendar() {
+            const grid = document.getElementById('bookingCalendarGrid');
+            const title = document.getElementById('bookingCalendarTitle');
+            const dateInput = document.getElementById('appointmentDate');
+            const selectedText = document.getElementById('bookingCalendarSelectedText');
+            if (!grid || !title || !dateInput) return;
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const monthStart = new Date(bookingCalendarMonth.getFullYear(), bookingCalendarMonth.getMonth(), 1);
+            const monthEnd = new Date(bookingCalendarMonth.getFullYear(), bookingCalendarMonth.getMonth() + 1, 0);
+            const startWeekday = monthStart.getDay();
+            const daysInMonth = monthEnd.getDate();
+
+            title.textContent = monthStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            grid.innerHTML = '';
+
+            for (let i = 0; i < startWeekday; i++) {
+                const pad = document.createElement('button');
+                pad.type = 'button';
+                pad.disabled = true;
+                pad.className = 'booking-calendar-day is-empty';
+                pad.setAttribute('aria-hidden', 'true');
+                grid.appendChild(pad);
+            }
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const current = new Date(monthStart.getFullYear(), monthStart.getMonth(), day);
+                const ymd = dateToYmdLocal(current);
+                const isPast = current < today;
+                const saturday = current.getDay() === 6;
+                const isBooked = bookingCalendarBookedDates.has(ymd);
+                const isFullyBooked = bookingCalendarFullyBookedDates.has(ymd);
+                const isSelected = bookingCalendarSelectedDate === ymd;
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'booking-calendar-day';
+                if (!saturday) btn.classList.add('is-non-saturday');
+                if (isBooked) btn.classList.add('is-booked');
+                if (isFullyBooked) btn.classList.add('is-fully-booked');
+                if (saturday && !isBooked && !isFullyBooked && !isPast) btn.classList.add('is-available-saturday');
+                if (isSelected) btn.classList.add('is-selected');
+
+                btn.textContent = String(day);
+                btn.title = saturday
+                    ? (isFullyBooked ? 'Saturday • Fully booked' : (isBooked ? 'Saturday • Has existing booking(s)' : 'Saturday • Available'))
+                    : 'Only Saturdays are available';
+
+                if (isPast || !saturday || isFullyBooked) {
+                    btn.disabled = true;
+                } else {
+                    btn.addEventListener('click', () => {
+                        bookingCalendarSelectedDate = ymd;
+                        dateInput.value = ymd;
+                        const dateErrorEl = document.getElementById('appointmentDateError');
+                        if (dateErrorEl) {
+                            dateErrorEl.textContent = '';
+                            dateErrorEl.classList.remove('is-visible');
+                        }
+                        dateInput.classList.remove('input-error');
+                        renderBookingCalendar();
+                        setTimeSlotsForDate(ymd);
+                    });
+                }
+
+                grid.appendChild(btn);
+            }
+
+            if (selectedText) {
+                if (bookingCalendarSelectedDate) {
+                    const dt = new Date(bookingCalendarSelectedDate + 'T00:00:00');
+                    selectedText.textContent = `Selected: ${dt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`;
+                } else {
+                    selectedText.textContent = 'No date selected yet';
+                }
+            }
+        }
+
+        async function initializeBookingCalendar(initialDateStr) {
+            await loadBookedDatesForCalendar();
+            const dateInput = document.getElementById('appointmentDate');
+            if (initialDateStr) {
+                bookingCalendarSelectedDate = initialDateStr;
+                bookingCalendarMonth = new Date(initialDateStr + 'T00:00:00');
+                bookingCalendarMonth = new Date(bookingCalendarMonth.getFullYear(), bookingCalendarMonth.getMonth(), 1);
+                if (dateInput) dateInput.value = initialDateStr;
+            }
+            renderBookingCalendar();
+        }
+
+        // Generate time slots and mark booked times
+        async function setTimeSlotsForDate(dateStr) {
+            const container = document.getElementById('timeSlotsContainer');
+            const slotsEl = document.getElementById('timeSlots');
+            if (!container || !slotsEl) return;
+            if (!dateStr) { container.style.display = 'none'; slotsEl.innerHTML = ''; return; }
+            // define hourly slots 9:00 - 16:00
+            const slots = [];
+            for (let h = 9; h <= 16; h++) {
+                slots.push(String(h).padStart(2,'0') + ':00');
+            }
+            // fetch existing appointments for that date
+            try {
+                const snapshot = await db.collection('appointments').where('date', '==', dateStr).get();
+                const occupied = new Set(snapshot.docs.map(d => (d.data().time || '').toString()));
+                slotsEl.innerHTML = '';
+                slots.forEach(t => {
+                    const btn = document.createElement('label');
+                    btn.style.cursor = 'pointer';
+                    btn.style.padding = '6px 10px';
+                    btn.style.border = '1px solid #ccc';
+                    btn.style.borderRadius = '4px';
+                    btn.style.display = 'inline-block';
+                    btn.style.background = occupied.has(t) ? '#fdecea' : '#fff';
+                    btn.title = occupied.has(t) ? 'Booked' : 'Available';
+                    const radio = document.createElement('input');
+                    radio.type = 'radio';
+                    radio.name = 'appointmentTime';
+                    radio.value = t;
+                    radio.style.marginRight = '6px';
+                    if (occupied.has(t)) {
+                        radio.disabled = true;
+                    }
+                    btn.appendChild(radio);
+                    const txt = document.createTextNode(' ' + formatTimeLabel(t));
+                    btn.appendChild(txt);
+                    slotsEl.appendChild(btn);
+                });
+                container.style.display = 'block';
+            } catch (err) {
+                console.error('Error loading appointments for date:', err);
+                container.style.display = 'none';
+            }
+        }
+
+        function formatTimeLabel(t) {
+            const [hh,mm] = t.split(':').map(Number);
+            const dt = new Date(); dt.setHours(hh); dt.setMinutes(mm);
+            return dt.toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
+        }
+
+        // Handle appointment form submission (confirm/submit)
+        document.getElementById('appointmentForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const dateInput = document.getElementById('appointmentDate');
+            const dateErrorEl = document.getElementById('appointmentDateError');
+            const timeErrorEl = document.getElementById('appointmentTimeError');
+            const formErrorEl = document.getElementById('appointmentFormError');
+            const timeSlotsContainer = document.getElementById('timeSlotsContainer');
+
+            if (dateErrorEl) { dateErrorEl.textContent = ''; dateErrorEl.classList.remove('is-visible'); }
+            if (timeErrorEl) { timeErrorEl.textContent = ''; timeErrorEl.classList.remove('is-visible'); }
+            if (formErrorEl) { formErrorEl.textContent = ''; formErrorEl.classList.remove('is-visible'); }
+            if (dateInput) dateInput.classList.remove('input-error');
+            if (timeSlotsContainer) timeSlotsContainer.classList.remove('slot-error');
+
+            if (!dateInput.value) {
+                if (dateErrorEl) {
+                    dateErrorEl.textContent = 'Please select a Saturday date (ex. 2026-01-31)';
+                    dateErrorEl.classList.add('is-visible');
+                }
+                dateInput.classList.add('input-error');
+                dateInput.focus();
+                return;
+            }
+            if (!isSaturday(dateInput.value)) {
+                if (dateErrorEl) {
+                    dateErrorEl.textContent = 'Appointments are Saturdays only';
+                    dateErrorEl.classList.add('is-visible');
+                }
+                dateInput.classList.add('input-error');
+                dateInput.focus();
+                return;
+            }
+            // ensure time selected
+            const selectedTimeEl = document.querySelector('input[name="appointmentTime"]:checked');
+            if (!selectedTimeEl) {
+                if (timeErrorEl) {
+                    timeErrorEl.textContent = 'Please choose an available time slot';
+                    timeErrorEl.classList.add('is-visible');
+                }
+                if (timeSlotsContainer) timeSlotsContainer.classList.add('slot-error');
+                return;
+            }
+            // set booking option and confirmation message
+            selectedAppointmentOption = 'appointment';
+            const selectedDate = new Date(dateInput.value);
+            const dateFormatted = selectedDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            const timeFormatted = formatTimeLabel(selectedTimeEl.value);
+            document.getElementById('appointmentConfirmation').textContent = `Your appointment is scheduled for ${dateFormatted} at ${timeFormatted}. We'll see you then!`;
+            await submitBooking();
+        });
+
+        // Submit the booking
+        async function submitBooking() {
+            if (!currentInquiryData || !selectedAppointmentOption) return;
+
+            // determine selected time (if any)
+            const appointmentDateValue = document.getElementById('appointmentDate').value || null;
+            const appointmentTimeEl = document.querySelector('input[name="appointmentTime"]:checked');
+            const appointmentTimeValue = appointmentTimeEl ? appointmentTimeEl.value : null;
+
+            const bookingData = {
+                ...currentInquiryData,
+                appointmentOption: selectedAppointmentOption,
+                appointmentDate: appointmentDateValue,
+                appointmentTime: appointmentTimeValue,
+                appointmentSessionType: 'Clinic', // default to Clinic since session type selector removed
+                bookingDate: new Date().toISOString()
+            };
+
+            try {
+                // Final duplicate check before saving
+                const firstName = currentInquiryData.firstName.trim().toLowerCase();
+                const lastName = currentInquiryData.lastName.trim().toLowerCase();
+                const middleName = (currentInquiryData.middleName || '').trim().toLowerCase();
+                
+                const existingInquiries = await db.collection('inquiries')
+                    .where('firstName', '==', firstName)
+                    .where('lastName', '==', lastName)
+                    .get();
+                
+                const isDuplicate = existingInquiries.docs.some(doc => {
+                    const docMiddleName = (doc.data().middleName || '').trim().toLowerCase();
+                    return docMiddleName === middleName;
+                });
+                
+                if (isDuplicate) {
+                    const formErrorEl = document.getElementById('appointmentFormError');
+                    if (formErrorEl) {
+                        formErrorEl.textContent = 'A booking with this name already exists. Please contact us to update your appointment.';
+                        formErrorEl.classList.add('is-visible');
+                    }
+                    return;
+                }
+
+                // save inquiry record
+                await db.collection('inquiries').add(bookingData);
+                // also create an appointment document so the therapist calendar shows the booking immediately
+                if (selectedAppointmentOption === 'appointment') {
+                    const appt = {
+                        patientName: bookingData.firstName + ' ' + bookingData.lastName,
+                        contact: bookingData.contactNumber || '',
+                        date: bookingData.appointmentDate,
+                        time: bookingData.appointmentTime || null,
+                        sessionType: 'Clinic', // default to Clinic
+                        description: 'Appointment',
+                        createdAt: new Date().toISOString(),
+                        isDeleted: false
+                    };
+                    try { await db.collection('appointments').add(appt); } catch(e){ console.warn('Failed to add appointment record:', e); }
+                    try { await loadBookedDatesForCalendar(); renderBookingCalendar(); } catch(e){ console.warn('Failed to refresh booking calendar:', e); }
+                }
+                appointmentModal.style.display = 'none';
+                thankYouModal.style.display = 'block';
+                document.getElementById('successBooking').style.display = 'block';
+                document.getElementById('duplicateWarning').style.display = 'none';
+                
+                // Reset forms after success
+                document.getElementById('inquiryForm').reset();
+                document.getElementById('appointmentForm').reset();
+                currentInquiryData = null;
+                selectedAppointmentOption = null;
+            } catch (error) {
+                console.error('Error submitting booking:', error);
+                const formErrorEl = document.getElementById('appointmentFormError');
+                if (formErrorEl) {
+                    formErrorEl.textContent = 'Error submitting booking. Please try again or contact us directly.';
+                    formErrorEl.classList.add('is-visible');
+                }
+            }
+        }
+
+        // Handle Done button
+        document.getElementById('doneBtn').addEventListener('click', function() {
+            thankYouModal.style.display = 'none';
+            // Reset the inquiry form so user can submit again if needed
+            document.getElementById('inquiryForm').reset();
+            currentInquiryData = null;
+            selectedAppointmentOption = null;
+            // Clear any duplicate message if present
+            const duplicateMsg = document.querySelector('.thank-you-message p');
+            if (duplicateMsg && duplicateMsg.textContent.includes('already Signed')) {
+                duplicateMsg.remove();
+            }
+        });
+        const firstNameInput = document.querySelector('input[name="firstName"]');
+        const middleNameInput = document.querySelector('input[name="middleName"]');
+        const lastNameInput = document.querySelector('input[name="lastName"]');
+        const contactNumberInput = document.querySelector('input[name="contactNumber"]');
+        const ageInput = document.querySelector('input[name="age"]');
+        const barangayInput = document.querySelector('input[name="barangay"]');
+        const municipalityInput = document.querySelector('input[name="municipality"]');
+        const provinceCityInput = document.querySelector('input[name="provinceCity"]');
+        const emergencyFirstNameInput = document.querySelector('input[name="emergencyFirstName"]');
+        const emergencyLastNameInput = document.querySelector('input[name="emergencyLastName"]');
+        const emergencyContactNumberInput = document.querySelector('input[name="emergencyContactNumber"]');
+        const emergencyRelationSelect = document.querySelector('select[name="emergencyRelation"]');
+        const emergencyRelationOtherInput = document.querySelector('input[name="emergencyRelationOther"]');
+        const caseHistoryInput = document.querySelector('input[name="caseHistory"]');
+        const caseHistoryOtherInput = document.querySelector('input[name="caseHistoryOther"]');
+        const caseHistorySearchInput = document.getElementById('inquiryCaseSearch');
+        const caseHistoryToggleBtn = document.getElementById('inquiryCaseToggle');
+        const caseHistoryResults = document.getElementById('inquiryCaseResults');
+
+        const CASE_CONDITION_GROUPS = [
+            {
+                label: '🦴 Musculoskeletal Conditions (most common)',
+                items: [
+                    'Low back pain',
+                    'Neck pain',
+                    'Shoulder pain (rotator cuff injury, frozen shoulder)',
+                    'Knee pain (ACL injury, meniscus tear, arthritis)',
+                    'Ankle sprain',
+                    'Muscle strains and ligament sprains',
+                    'Tendinitis / Tendinopathy',
+                    'Post-fracture rehabilitation'
+                ]
+            },
+            {
+                label: '🧠 Neurological Conditions',
+                items: [
+                    'Stroke (CVA) rehabilitation',
+                    'Spinal cord injury',
+                    'Parkinson\'s disease',
+                    'Multiple sclerosis',
+                    'Cerebral palsy',
+                    'Nerve injuries (e.g., sciatic nerve, facial nerve)',
+                    'Balance and coordination problems'
+                ]
+            },
+            {
+                label: '❤️ Cardiopulmonary Conditions',
+                items: [
+                    'Post-heart attack rehabilitation',
+                    'Chronic Obstructive Pulmonary Disease (COPD)',
+                    'Asthma management',
+                    'Post-COVID rehabilitation',
+                    'Patients with decreased endurance or shortness of breath'
+                ]
+            },
+            {
+                label: '🏃 Sports-Related Injuries',
+                items: [
+                    'Sports sprains and strains',
+                    'ACL / MCL injuries',
+                    'Tennis elbow / Golfer\'s elbow',
+                    'Shin splints',
+                    'Runner\'s knee',
+                    'Muscle cramps and overuse injuries'
+                ]
+            },
+            {
+                label: '👵 Geriatric (Elderly) Cases',
+                items: [
+                    'Osteoarthritis',
+                    'Osteoporosis',
+                    'Balance and fall prevention',
+                    'General weakness and mobility issues',
+                    'Post-hip or knee replacement rehab'
+                ]
+            },
+            {
+                label: '🧍 Postural & Lifestyle-Related Issues',
+                items: [
+                    'Poor posture (tech neck, rounded shoulders)',
+                    'Scoliosis',
+                    'Work-related repetitive strain injuries',
+                    'Sedentary lifestyle-related pain'
+                ]
+            },
+            {
+                label: '🏥 Post-Surgical Rehabilitation',
+                items: [
+                    'Post knee replacement',
+                    'Post hip replacement',
+                    'Post spinal surgery',
+                    'Post shoulder surgery',
+                    'Post ligament reconstruction'
+                ]
+            },
+            {
+                label: '',
+                items: ['Others']
+            }
+        ];
+
+        // Name validation function
+        function validateNameInput(input) {
+            if (!input) return;
+            input.addEventListener('input', function() {
+                this.value = this.value.replace(/[^a-zA-Z\s]/g, '');
+            });
+        }
+
+        // Phone number validation function
+        function validatePhoneInput(input) {
+            if (!input) return;
+            input.addEventListener('input', function() {
+                this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11);
+            });
+        }
+
+        // Age validation function
+        function validateAgeInput(input) {
+            if (!input) return;
+            input.addEventListener('input', function() {
+                let v = String(this.value || '').replace(/\D/g, '');
+                v = v.replace(/^0+/, '');
+                if (v) {
+                    const n = parseInt(v, 10);
+                    v = String(Math.min(100, n));
+                }
+                this.value = v;
+            });
+        }
+
+        function attachClearOnInput(input) {
+            if (!input) return;
+            input.addEventListener('input', function() {
+                clearFieldError(input);
+            });
+        }
+
+        function attachClearOnChange(input) {
+            if (!input) return;
+            input.addEventListener('change', function() {
+                clearFieldError(input);
+            });
+        }
+
+        // Apply validations
+        validateNameInput(firstNameInput);
+        validateNameInput(middleNameInput);
+        validateNameInput(lastNameInput);
+        validatePhoneInput(contactNumberInput);
+        validateAgeInput(ageInput);
+        validateNameInput(emergencyFirstNameInput);
+        validateNameInput(emergencyLastNameInput);
+        validatePhoneInput(emergencyContactNumberInput);
+        validateNameInput(emergencyRelationOtherInput);
+        attachClearOnInput(firstNameInput);
+        attachClearOnInput(middleNameInput);
+        attachClearOnInput(lastNameInput);
+        attachClearOnInput(contactNumberInput);
+        attachClearOnInput(ageInput);
+        validateNameInput(barangayInput);
+        validateNameInput(municipalityInput);
+        validateNameInput(provinceCityInput);
+        attachClearOnInput(barangayInput);
+        attachClearOnInput(municipalityInput);
+        attachClearOnInput(provinceCityInput);
+        attachClearOnInput(emergencyFirstNameInput);
+        attachClearOnInput(emergencyLastNameInput);
+        attachClearOnInput(emergencyContactNumberInput);
+        attachClearOnChange(emergencyRelationSelect);
+        attachClearOnInput(emergencyRelationOtherInput);
+        attachClearOnInput(caseHistoryInput);
+        attachClearOnInput(caseHistoryOtherInput);
+        // Case History: remove digits as user types
+        function validateCaseHistoryInput(input) {
+            if (!input) return;
+            input.addEventListener('input', function() {
+                this.value = this.value.replace(/[0-9]/g, '');
+            });
+        }
+        // Attach validation to the 'Other' text input (if present)
+        validateCaseHistoryInput(caseHistoryOtherInput);
+
+        // Attach validation to the emergency relation 'Other' input (if present)
+        validateCaseHistoryInput(emergencyRelationOtherInput);
+
+        function hideCaseSuggestions() {
+            if (caseHistoryResults) {
+                caseHistoryResults.classList.remove('is-visible');
+                caseHistoryResults.classList.remove('is-above');
+                caseHistoryResults.innerHTML = '';
+            }
+        }
+
+        function positionCaseSuggestions() {
+            if (!caseHistorySearchInput || !caseHistoryResults) return;
+            const inputRect = caseHistorySearchInput.getBoundingClientRect();
+            const panelHeight = Math.min(caseHistoryResults.scrollHeight, 320) + 8;
+            const spaceBelow = window.innerHeight - inputRect.bottom;
+            const spaceAbove = inputRect.top;
+
+            if (spaceBelow < panelHeight && spaceAbove > spaceBelow) {
+                caseHistoryResults.classList.add('is-above');
+            } else {
+                caseHistoryResults.classList.remove('is-above');
+            }
+        }
+
+        function toggleCaseOtherInput(value) {
+            if (!caseHistoryOtherInput) return;
+            if ((value || '').trim().toLowerCase() === 'others') {
+                caseHistoryOtherInput.style.display = 'block';
+            } else {
+                caseHistoryOtherInput.style.display = 'none';
+                caseHistoryOtherInput.value = '';
+                clearFieldError(caseHistoryOtherInput);
+            }
+        }
+
+        function renderCaseSuggestions(term, showAll) {
+            if (!caseHistoryResults) return;
+            const text = (term || '').trim().toLowerCase();
+            if (!text && !showAll) {
+                hideCaseSuggestions();
+                return;
+            }
+
+            const matchesCondition = function(item, query) {
+                const value = item.toLowerCase();
+                if (!query) return false;
+                // Match from the start of the full condition text first.
+                if (value.startsWith(query)) return true;
+                // Also match at word boundaries (e.g., "back" in "Low back pain").
+                return value.split(/[^a-z0-9]+/).some(part => part.startsWith(query));
+            };
+
+            caseHistoryResults.innerHTML = '';
+            let hasMatches = false;
+
+            CASE_CONDITION_GROUPS.forEach(group => {
+                const matchedItems = showAll
+                    ? group.items.slice()
+                    : group.items.filter(item => matchesCondition(item, text));
+                if (!matchedItems.length) return;
+                hasMatches = true;
+
+                if (group.label) {
+                    const groupLabel = document.createElement('div');
+                    groupLabel.className = 'condition-group-label';
+                    groupLabel.textContent = group.label;
+                    caseHistoryResults.appendChild(groupLabel);
+                }
+
+                matchedItems.forEach(item => {
+                    const optionBtn = document.createElement('button');
+                    optionBtn.type = 'button';
+                    optionBtn.className = 'condition-option';
+                    optionBtn.textContent = item;
+                    optionBtn.addEventListener('mousedown', function(event) {
+                        event.preventDefault();
+                    });
+                    optionBtn.addEventListener('click', function() {
+                        caseHistorySearchInput.value = item;
+                        clearFieldError(caseHistorySearchInput);
+                        toggleCaseOtherInput(item);
+                        hideCaseSuggestions();
+                    });
+                    caseHistoryResults.appendChild(optionBtn);
+                });
+            });
+
+            if (!hasMatches) {
+                const emptyState = document.createElement('div');
+                emptyState.className = 'condition-no-results';
+                emptyState.textContent = 'No matching condition found';
+                caseHistoryResults.appendChild(emptyState);
+            }
+
+            caseHistoryResults.classList.add('is-visible');
+            positionCaseSuggestions();
+        }
+
+        if (caseHistorySearchInput) {
+            caseHistorySearchInput.addEventListener('focus', function() {
+                hideCaseSuggestions();
+            });
+            caseHistorySearchInput.addEventListener('click', function() {
+                hideCaseSuggestions();
+            });
+            caseHistorySearchInput.addEventListener('input', function() {
+                toggleCaseOtherInput(this.value);
+                renderCaseSuggestions(this.value, false);
+            });
+            caseHistorySearchInput.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    hideCaseSuggestions();
+                }
+            });
+        }
+
+        if (caseHistoryToggleBtn) {
+            caseHistoryToggleBtn.addEventListener('click', function() {
+                if (!caseHistoryResults) return;
+                const isOpen = caseHistoryResults.classList.contains('is-visible');
+                if (isOpen) {
+                    hideCaseSuggestions();
+                    return;
+                }
+                renderCaseSuggestions(caseHistorySearchInput ? caseHistorySearchInput.value : '', true);
+            });
+        }
+
+        document.addEventListener('click', function(event) {
+            const picker = document.querySelector('.condition-picker');
+            if (picker && !picker.contains(event.target)) {
+                hideCaseSuggestions();
+            }
+        });
+
+        window.addEventListener('resize', function() {
+            if (caseHistoryResults && caseHistoryResults.classList.contains('is-visible')) {
+                positionCaseSuggestions();
+            }
+        });
+
+        window.addEventListener('scroll', function() {
+            if (caseHistoryResults && caseHistoryResults.classList.contains('is-visible')) {
+                positionCaseSuggestions();
+            }
+        }, true);
+
+        if (emergencyRelationSelect && emergencyRelationOtherInput) {
+            emergencyRelationSelect.addEventListener('change', function(){
+                if (this.value === 'Others') {
+                    emergencyRelationOtherInput.style.display = 'block';
+                    emergencyRelationOtherInput.focus();
+                } else {
+                    emergencyRelationOtherInput.style.display = 'none';
+                    emergencyRelationOtherInput.value = '';
+                    clearFieldError(emergencyRelationOtherInput);
+                }
+            });
+        }
+
+        // When appointment date changes, update available time slots
+        const appointmentDateInput = document.getElementById('appointmentDate');
+        if (appointmentDateInput) {
+            appointmentDateInput.addEventListener('change', function(){
+                const dateErrorEl = document.getElementById('appointmentDateError');
+                if (dateErrorEl) {
+                    dateErrorEl.textContent = '';
+                    dateErrorEl.classList.remove('is-visible');
+                }
+                appointmentDateInput.classList.remove('input-error');
+                if (this.value && isSaturday(this.value)) {
+                    bookingCalendarSelectedDate = this.value;
+                    renderBookingCalendar();
+                    setTimeSlotsForDate(this.value);
+                } else {
+                    if (this.value) {
+                        this.value = getNextSaturdayDateString(this.value);
+                        bookingCalendarSelectedDate = this.value;
+                        renderBookingCalendar();
+                    }
+                    const container = document.getElementById('timeSlotsContainer');
+                    if (container) container.style.display = 'none';
+                }
+            });
+        }
+
+        const bookingCalendarPrevBtn = document.getElementById('bookingCalendarPrevBtn');
+        const bookingCalendarNextBtn = document.getElementById('bookingCalendarNextBtn');
+        if (bookingCalendarPrevBtn) {
+            bookingCalendarPrevBtn.addEventListener('click', function() {
+                bookingCalendarMonth = new Date(bookingCalendarMonth.getFullYear(), bookingCalendarMonth.getMonth() - 1, 1);
+                renderBookingCalendar();
+            });
+        }
+        if (bookingCalendarNextBtn) {
+            bookingCalendarNextBtn.addEventListener('click', function() {
+                bookingCalendarMonth = new Date(bookingCalendarMonth.getFullYear(), bookingCalendarMonth.getMonth() + 1, 1);
+                renderBookingCalendar();
+            });
+        }
+        const timeSlotsEl = document.getElementById('timeSlots');
+        if (timeSlotsEl) {
+            timeSlotsEl.addEventListener('change', function(){
+                const timeErrorEl = document.getElementById('appointmentTimeError');
+                const container = document.getElementById('timeSlotsContainer');
+                if (timeErrorEl) {
+                    timeErrorEl.textContent = '';
+                    timeErrorEl.classList.remove('is-visible');
+                }
+                if (container) container.classList.remove('slot-error');
+            });
+        }
+
+        if (inquireBtn) {
+            inquireBtn.addEventListener('click', function() {
+                hideCaseSuggestions();
+                if (caseHistorySearchInput) {
+                    caseHistorySearchInput.value = '';
+                    clearFieldError(caseHistorySearchInput);
+                }
+                toggleCaseOtherInput('');
+            });
+        }
+    </script>
+</body>
+</html>

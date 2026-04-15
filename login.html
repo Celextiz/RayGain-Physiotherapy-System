@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RayGain Physiotherapy Clinic</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        :root {
+            --sea-900: #14384b;
+            --sea-700: #257f85;
+            --sea-500: #2f979e;
+            --mint-300: #8fd2d0;
+            --cloud-100: #f4fbfc;
+            --ink-900: #1f2d38;
+            --danger-600: #c44747;
+        }
+
+        body.login-bg {
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Outfit', sans-serif;
+            color: var(--ink-900);
+            background:
+                radial-gradient(circle at 15% 20%, rgba(143, 210, 208, 0.36), transparent 35%),
+                radial-gradient(circle at 85% 12%, rgba(43, 153, 159, 0.24), transparent 30%),
+                linear-gradient(145deg, #edf8fa 0%, #dff2f5 48%, #ecf7f8 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .login-home-link {
+            position: fixed;
+            top: 16px;
+            right: 18px;
+            z-index: 20;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #2a595b;
+            font-size: 0.9rem;
+            font-weight: 700;
+            text-decoration: none;
+            letter-spacing: 0.01em;
+            padding: 6px 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(37, 127, 133, 0.2);
+            background: rgba(255, 255, 255, 0.72);
+            backdrop-filter: blur(2px);
+            transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+        }
+
+        .login-home-link:hover {
+            color: var(--sea-900);
+            border-color: rgba(20, 56, 75, 0.35);
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        .login-orb {
+            position: fixed;
+            border-radius: 999px;
+            filter: blur(0.5px);
+            opacity: 0.55;
+            pointer-events: none;
+            animation: floatOrbit 7.5s ease-in-out infinite;
+        }
+
+        .login-orb.one {
+            width: 220px;
+            height: 220px;
+            left: -50px;
+            bottom: -30px;
+            background: linear-gradient(135deg, #74cdb8, #2c9aa6);
+        }
+
+        .login-orb.two {
+            width: 180px;
+            height: 180px;
+            right: -40px;
+            top: 20px;
+            background: linear-gradient(135deg, #5aa7d1, #77d0be);
+            animation-delay: 0.8s;
+        }
+
+        @keyframes floatOrbit {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-12px); }
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 920px;
+            margin: 0;
+            border-radius: 22px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            overflow: hidden;
+            box-shadow: 0 22px 42px rgba(15, 63, 79, 0.22);
+            background: #ffffff;
+            position: relative;
+            z-index: 1;
+        }
+
+        .login-panel-brand {
+            padding: 48px 42px;
+            background: linear-gradient(160deg, #14384b 0%, #257f85 62%, #2b999f 100%);
+            color: #f8ffff;
+            position: relative;
+        }
+
+        .login-panel-brand::after {
+            content: '';
+            position: absolute;
+            right: -70px;
+            top: -60px;
+            width: 180px;
+            height: 180px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.16);
+        }
+
+        .login-brand-kicker {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+            opacity: 0.9;
+            margin-bottom: 12px;
+        }
+
+        .login-panel-brand h1 {
+            margin: 0;
+            font-size: 2rem;
+            line-height: 1.2;
+            font-weight: 800;
+            color: #ffffff;
+        }
+
+        .login-brand-copy {
+            margin-top: 16px;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #dff4f8;
+            max-width: 320px;
+        }
+
+        .login-panel-form {
+            padding: 40px 34px;
+            background: linear-gradient(180deg, #ffffff 0%, #f7fcfc 100%);
+            display: flex;
+            align-items: center;
+        }
+
+        .login-card {
+            margin: 0;
+            width: 100%;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            text-align: left;
+        }
+
+        .login-profile-icon {
+            width: 96px;
+            height: 96px;
+            border-radius: 50%;
+            background: transparent;
+            object-fit: cover;
+            padding: 0;
+            border: none;
+            margin-bottom: 14px;
+        }
+
+        .login-card h2 {
+            margin: 0 0 4px;
+            color: #14384b;
+            font-size: 1.35rem;
+            font-weight: 800;
+        }
+
+        .login-subtitle {
+            margin: 0 0 18px;
+            color: #54707d;
+            font-size: 0.93rem;
+        }
+
+        .input-wrap {
+            position: relative;
+        }
+
+        #therapistLoginForm input,
+        #changePasswordForm input {
+            width: 100%;
+            border: 1px solid #c6dce2;
+            background: #ffffff;
+            padding: 11px 56px 11px 12px;
+            border-radius: 12px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.95rem;
+            color: #16303c;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            margin-bottom: 12px;
+        }
+
+        #therapistLoginForm input:focus,
+        #changePasswordForm input:focus {
+            outline: none;
+            border-color: var(--sea-500);
+            box-shadow: 0 0 0 3px rgba(44, 154, 166, 0.16);
+        }
+
+        .input-wrap .toggle-pass-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(calc(-50% - 3px));
+            border: 0;
+            background: transparent !important;
+            color: #365764;
+            border-radius: 0;
+            width: 44px;
+            height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            margin-top: 0 !important;
+            cursor: pointer;
+            box-shadow: none !important;
+            border: none !important;
+        }
+
+        .input-wrap .toggle-pass-btn:hover {
+            background: transparent;
+        }
+
+        .input-wrap .toggle-pass-btn img {
+            width: 34px;
+            height: 34px;
+            object-fit: contain;
+            opacity: 0.9;
+            filter: grayscale(1) saturate(0) brightness(0.45);
+        }
+
+        .input-wrap .toggle-pass-btn[aria-pressed="true"] {
+            background: transparent;
+        }
+
+        .login-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 4px;
+            flex-wrap: wrap;
+        }
+
+        .inline-action-row {
+            margin-top: 8px;
+            margin-bottom: 2px;
+            font-size: 0.8rem;
+            color: #5e7681;
+            line-height: 1.3;
+        }
+
+        .inline-action-link {
+            border: none;
+            background: transparent !important;
+            color: var(--sea-700) !important;
+            padding: 0;
+            margin: 0;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            box-shadow: none !important;
+        }
+
+        .inline-action-link:hover {
+            color: var(--sea-900) !important;
+        }
+
+        .primary-btn,
+        .secondary-btn,
+        .text-btn {
+            border: 1px solid transparent;
+            border-radius: 12px;
+            font-family: 'Outfit', sans-serif;
+            cursor: pointer;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+        }
+
+        .login-card .primary-btn {
+            flex: 1;
+            min-width: 160px;
+            background: var(--sea-500) !important;
+            border-color: var(--sea-500) !important;
+            color: #ffffff !important;
+            font-weight: 700;
+            padding: 12px 14px;
+            box-shadow: 0 10px 18px rgba(21, 86, 95, 0.24) !important;
+            letter-spacing: 0.2px;
+        }
+
+        .login-card .primary-btn:hover {
+            transform: translateY(-1px);
+            background: #2a8990 !important;
+            border-color: #2a8990 !important;
+            box-shadow: 0 12px 22px rgba(21, 86, 95, 0.3) !important;
+        }
+
+        .login-card .secondary-btn {
+            background: #e8f5f5 !important;
+            border-color: #b5d8d9 !important;
+            color: #1f5e68 !important;
+            font-weight: 700;
+            padding: 12px 14px;
+            box-shadow: 0 6px 12px rgba(31, 94, 104, 0.1) !important;
+        }
+
+        .login-card .secondary-btn:hover {
+            background: #d9eff0 !important;
+            border-color: #9ec9cc !important;
+        }
+
+        .login-card .text-btn {
+            width: 100%;
+            display: block;
+            background: var(--sea-500) !important;
+            border-color: var(--sea-500) !important;
+            color: #ffffff !important;
+            font-weight: 700;
+            font-size: 0.92rem;
+            padding: 12px 14px;
+            margin-top: 12px;
+            box-shadow: 0 10px 18px rgba(21, 86, 95, 0.2) !important;
+        }
+
+        .login-card .text-btn:hover {
+            background: #2a8990 !important;
+            border-color: #2a8990 !important;
+            transform: translateY(-1px);
+            box-shadow: 0 12px 22px rgba(21, 86, 95, 0.28) !important;
+            text-decoration: none;
+        }
+
+        .status-note {
+            min-height: 18px;
+            margin-top: 10px;
+            font-size: 0.86rem;
+            font-weight: 600;
+            color: #31535f;
+        }
+
+        .status-note.is-error { color: var(--danger-600); }
+        .status-note.is-success { color: #1f7a56; }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(11, 33, 43, 0.52);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 20px;
+        }
+
+        .modal-overlay.is-open {
+            display: flex;
+            animation: fadeIn 0.18s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-card {
+            width: 100%;
+            max-width: 410px;
+            background: #ffffff;
+            border-radius: 16px;
+            border: 1px solid #d6e6ea;
+            box-shadow: 0 14px 28px rgba(15, 63, 79, 0.2);
+            padding: 20px;
+        }
+
+        .modal-card h3 {
+            margin: 0 0 6px;
+            color: #143746;
+            font-size: 1.15rem;
+        }
+
+        .modal-card p {
+            margin: 0 0 14px;
+            color: #607782;
+            font-size: 0.9rem;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 8px;
+        }
+
+        .modal-actions button {
+            min-width: 110px;
+        }
+
+        #changePasswordModal .modal-actions .secondary-btn,
+        #changePasswordModal .modal-actions .primary-btn {
+            background: var(--sea-500) !important;
+            border-color: var(--sea-500) !important;
+            color: #ffffff !important;
+            box-shadow: 0 8px 16px rgba(21, 86, 95, 0.2) !important;
+        }
+
+        #changePasswordModal .modal-actions .secondary-btn:hover,
+        #changePasswordModal .modal-actions .primary-btn:hover {
+            background: #2a8990 !important;
+            border-color: #2a8990 !important;
+            box-shadow: 0 10px 18px rgba(21, 86, 95, 0.26) !important;
+        }
+
+        @media (max-width: 860px) {
+            .login-container {
+                grid-template-columns: 1fr;
+                max-width: 500px;
+            }
+
+            .login-panel-brand {
+                padding: 30px 26px;
+            }
+
+            .login-panel-brand h1 {
+                font-size: 1.65rem;
+            }
+
+            .login-panel-form {
+                padding: 26px;
+            }
+        }
+    </style>
+</head>
+<body class="login-bg">
+    <a href="index.html" class="login-home-link" aria-label="Go to home page">&larr; Home</a>
+    <div class="login-orb one" aria-hidden="true"></div>
+    <div class="login-orb two" aria-hidden="true"></div>
+
+    <div class="login-container">
+        <section class="login-panel-brand" aria-label="Brand intro">
+            <div class="login-brand-kicker">Therapist Portal</div>
+            <h1>RayGain Physiotherapy Clinic</h1>
+            <p class="login-brand-copy">Securely manage appointments, patient records, and care progress in one focused workspace.</p>
+        </section>
+
+        <section class="login-panel-form" aria-label="Login panel">
+            <div class="login-card" id="therapistLoginCard">
+                <img src="images/RayGain Logo.png" alt="RayGain Logo" class="login-profile-icon">
+                <h2>Login as Therapist</h2>
+                <p class="login-subtitle">Enter your passcode to continue.</p>
+
+                <form id="therapistLoginForm">
+                    <div class="input-wrap">
+                        <input type="password" name="therapistPasscode" id="therapistPasscode" placeholder="Enter passcode" required>
+                        <button type="button" class="toggle-pass-btn" id="toggleLoginPassBtn" aria-label="Show password" aria-pressed="false">
+                            <img src="images/eye icon.jpg?v=20260309" alt="Show password">
+                        </button>
+                    </div>
+
+                    <div class="login-actions">
+                        <button type="submit" class="primary-btn">Login</button>
+                    </div>
+
+                    <button type="button" id="openChangePasswordBtn" class="text-btn">Change Password</button>
+
+                    <div class="inline-action-row">
+                        Forgot password? <button type="button" id="forgotPasswordBtn" class="inline-action-link">click here</button>
+                    </div>
+                    <div id="loginStatusNote" class="status-note" aria-live="polite"></div>
+                </form>
+            </div>
+        </section>
+    </div>
+
+    <div id="notificationModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="notificationTitle">
+        <div class="modal-card">
+            <h3 id="notificationTitle">Notice</h3>
+            <p id="notificationMessage"></p>
+            <div class="modal-actions">
+                <button id="closeNotificationBtn" class="primary-btn" type="button">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="changePasswordModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="changePasswordTitle">
+        <div class="modal-card">
+            <h3 id="changePasswordTitle">Change Password</h3>
+            <p>Use your current passcode, then set a new one.</p>
+            <form id="changePasswordForm">
+                <input type="password" id="currentPassword" placeholder="Current Password" required>
+                <input type="password" id="newPassword" placeholder="New Password" required>
+                <input type="password" id="confirmPassword" placeholder="Confirm Password" required>
+                <div id="changePasswordStatus" class="status-note" aria-live="polite"></div>
+                <div class="modal-actions">
+                    <button type="button" id="cancelChangePasswordBtn" class="secondary-btn">Cancel</button>
+                    <button type="submit" class="primary-btn">Save Password</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const DEFAULT_THERAPIST_PASSCODE = 'BARBEQUE';
+        const PASSCODE_STORAGE_KEY = 'raygainTherapistPasscode';
+
+        const therapistLoginForm = document.getElementById('therapistLoginForm');
+        const therapistPasscodeInput = document.getElementById('therapistPasscode');
+        const toggleLoginPassBtn = document.getElementById('toggleLoginPassBtn');
+        const forgotPasswordBtn = document.getElementById('forgotPasswordBtn');
+        const loginStatusNote = document.getElementById('loginStatusNote');
+
+        const notificationModal = document.getElementById('notificationModal');
+        const notificationMessage = document.getElementById('notificationMessage');
+        const closeNotificationBtn = document.getElementById('closeNotificationBtn');
+
+        const openChangePasswordBtn = document.getElementById('openChangePasswordBtn');
+        const changePasswordModal = document.getElementById('changePasswordModal');
+        const changePasswordForm = document.getElementById('changePasswordForm');
+        const cancelChangePasswordBtn = document.getElementById('cancelChangePasswordBtn');
+        const currentPasswordInput = document.getElementById('currentPassword');
+        const newPasswordInput = document.getElementById('newPassword');
+        const confirmPasswordInput = document.getElementById('confirmPassword');
+        const changePasswordStatus = document.getElementById('changePasswordStatus');
+
+        function getTherapistPasscode() {
+            return localStorage.getItem(PASSCODE_STORAGE_KEY) || DEFAULT_THERAPIST_PASSCODE;
+        }
+
+        function setTherapistPasscode(newPasscode) {
+            localStorage.setItem(PASSCODE_STORAGE_KEY, newPasscode);
+        }
+
+        function setStatusNote(text, type) {
+            loginStatusNote.textContent = text || '';
+            loginStatusNote.classList.remove('is-error', 'is-success');
+            if (type) loginStatusNote.classList.add(type);
+        }
+
+        function openNotification(message) {
+            notificationMessage.textContent = message;
+            notificationModal.classList.add('is-open');
+        }
+
+        function closeNotification() {
+            notificationModal.classList.remove('is-open');
+        }
+
+        function openChangePasswordModal() {
+            changePasswordForm.reset();
+            changePasswordStatus.textContent = '';
+            changePasswordStatus.classList.remove('is-error', 'is-success');
+            changePasswordModal.classList.add('is-open');
+            currentPasswordInput.focus();
+        }
+
+        function closeChangePasswordModal() {
+            changePasswordModal.classList.remove('is-open');
+        }
+
+        toggleLoginPassBtn.addEventListener('click', function() {
+            const showing = therapistPasscodeInput.type === 'text';
+            therapistPasscodeInput.type = showing ? 'password' : 'text';
+            toggleLoginPassBtn.setAttribute('aria-pressed', showing ? 'false' : 'true');
+            toggleLoginPassBtn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+        });
+
+        therapistLoginForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const passcode = therapistPasscodeInput.value.trim();
+            if (passcode === getTherapistPasscode()) {
+                setStatusNote('Login successful. Redirecting...', 'is-success');
+                sessionStorage.setItem('userType', 'therapist');
+                sessionStorage.setItem('therapistAuth', 'true');
+                sessionStorage.setItem('raygainTherapistAuth', '1');
+                sessionStorage.setItem('raygainTherapistLoginAt', new Date().toISOString());
+                window.location.href = 'therapist-dashboard.html';
+            } else {
+                setStatusNote('Incorrect password. Try again or contact Admin.', 'is-error');
+                openNotification('Incorrect password. Try again or contact Admin.');
+            }
+        });
+
+        forgotPasswordBtn.addEventListener('click', function() {
+            openNotification('Forgot Password: Please contact the Admin to reset your password.');
+        });
+
+        openChangePasswordBtn.addEventListener('click', openChangePasswordModal);
+        cancelChangePasswordBtn.addEventListener('click', closeChangePasswordModal);
+        closeNotificationBtn.addEventListener('click', closeNotification);
+
+        changePasswordForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const currentPassword = currentPasswordInput.value.trim();
+            const newPassword = newPasswordInput.value.trim();
+            const confirmPassword = confirmPasswordInput.value.trim();
+
+            changePasswordStatus.classList.remove('is-error', 'is-success');
+
+            if (currentPassword !== getTherapistPasscode()) {
+                changePasswordStatus.textContent = 'Current password is incorrect.';
+                changePasswordStatus.classList.add('is-error');
+                return;
+            }
+
+            if (newPassword.length < 6) {
+                changePasswordStatus.textContent = 'New password must be at least 6 characters.';
+                changePasswordStatus.classList.add('is-error');
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                changePasswordStatus.textContent = 'New password and confirm password do not match.';
+                changePasswordStatus.classList.add('is-error');
+                return;
+            }
+
+            if (newPassword === currentPassword) {
+                changePasswordStatus.textContent = 'New password must be different from current password.';
+                changePasswordStatus.classList.add('is-error');
+                return;
+            }
+
+            setTherapistPasscode(newPassword);
+            changePasswordStatus.textContent = 'Password changed successfully.';
+            changePasswordStatus.classList.add('is-success');
+
+            setTimeout(function() {
+                closeChangePasswordModal();
+                openNotification('Password updated. Use your new password on next login.');
+            }, 500);
+        });
+
+        [notificationModal, changePasswordModal].forEach(function(modalEl) {
+            modalEl.addEventListener('click', function(event) {
+                if (event.target === modalEl) {
+                    modalEl.classList.remove('is-open');
+                }
+            });
+        });
+
+    </script>
+</body>
+</html>

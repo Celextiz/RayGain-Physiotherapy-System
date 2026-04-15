@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RayGain | Inquire</title>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700,800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="inquire.css">
+</head>
+<body>
+    <main class="inquire-page">
+        <section class="inquire-layout">
+            <div class="inquire-left">
+                <a href="index.html" class="brand" aria-label="Go to home">
+                    <img src="images/RayGain Logo.png" alt="RayGain Logo" class="brand-logo">
+                    <span class="brand-name">RayGain</span>
+                </a>
+
+                <div class="left-copy">
+                    <p class="left-kicker">Inquire Today</p>
+                    <h1>Helping you move better, recover faster and alleviate your pain</h1>
+                </div>
+            </div>
+
+            <section class="inquire-form-panel" aria-labelledby="inquireFormTitle">
+                <h2 id="inquireFormTitle">Inqurie Form</h2>
+
+                <form id="inquireForm" novalidate>
+                    <h3 class="section-title">Patient Information</h3>
+
+                    <div class="field-row two-col">
+                        <div class="field-group">
+                            <label for="firstName">First Name*</label>
+                            <input id="firstName" name="firstName" type="text" required pattern="[A-Za-z ]+" title="Letters and spaces only">
+                        </div>
+                        <div class="field-group">
+                            <label for="middleName">Middle Name*</label>
+                            <input id="middleName" name="middleName" type="text" required pattern="[A-Za-z ]+" title="Letters and spaces only">
+                        </div>
+                    </div>
+
+                    <div class="field-row three-col">
+                        <div class="field-group">
+                            <label for="suffix">Suffix</label>
+                            <input id="suffix" name="suffix" type="text" list="suffixOptions" placeholder="Jr / Sr / III" minlength="2" maxlength="3" pattern="Jr|Sr|III" title="Use Jr, Sr, or III only">
+                            <datalist id="suffixOptions">
+                                <option value="Jr"></option>
+                                <option value="Sr"></option>
+                                <option value="III"></option>
+                            </datalist>
+                        </div>
+                        <div class="field-group">
+                            <label for="lastName">Last Name*</label>
+                            <input id="lastName" name="lastName" type="text" required pattern="[A-Za-z ]+" title="Letters and spaces only">
+                        </div>
+                        <div class="field-group">
+                            <label for="age">Age*</label>
+                            <input id="age" name="age" type="number" min="1" max="100" required>
+                        </div>
+                    </div>
+
+                    <div class="field-row two-col">
+                        <div class="field-group">
+                            <label for="contactNumber">Contact Number*</label>
+                            <input id="contactNumber" name="contactNumber" type="tel" required pattern="09[0-9]{9}" maxlength="11" inputmode="numeric" title="Must start with 09 and be 11 digits">
+                        </div>
+                        <div class="field-group">
+                            <label for="gmail">Gmail*</label>
+                            <input id="gmail" name="gmail" type="email" required>
+                        </div>
+                    </div>
+
+                    <div class="field-row three-col">
+                        <div class="field-group">
+                            <label for="barangay">Barangay*</label>
+                            <input id="barangay" name="barangay" type="text" required>
+                        </div>
+                        <div class="field-group">
+                            <label for="municipality">Municipality*</label>
+                            <input id="municipality" name="municipality" type="text" required>
+                        </div>
+                        <div class="field-group">
+                            <label for="provinceCity">Province/City*</label>
+                            <input id="provinceCity" name="provinceCity" type="text" required>
+                        </div>
+                    </div>
+
+                    <div class="field-row single">
+                        <label for="caseCondition">Case/Condition* (Search or type)</label>
+                        <input id="caseCondition" name="caseCondition" list="caseConditionOptions" type="text" required placeholder="Search or type your condition">
+                        <datalist id="caseConditionOptions">
+                            <option value="Stroke (CVA)"></option>
+                            <option value="Spinal Cord Injury (SCI)"></option>
+                            <option value="Traumatic Brain Injury (TBI)"></option>
+                            <option value="Parkinson's Disease"></option>
+                            <option value="Peripheral Nerve Injuries"></option>
+                            <option value="Carpal Tunnel Syndrome"></option>
+                            <option value="Sciatica"></option>
+                            <option value="Bell's Palsy"></option>
+                            <option value="Multiple Sclerosis"></option>
+                            <option value="Motor Neuron Diseases"></option>
+                            <option value="Other Neurological Diseases"></option>
+                            <option value="Low back/neck pain"></option>
+                            <option value="Sprain / Strain Injuries"></option>
+                            <option value="Frozen Shoulder"></option>
+                            <option value="Osteoarthritis"></option>
+                            <option value="Rheumatoid Arthritis"></option>
+                            <option value="Fracture"></option>
+                            <option value="Scoliosis"></option>
+                            <option value="Amputation"></option>
+                            <option value="Hip Replacement"></option>
+                            <option value="Knee Replacement"></option>
+                            <option value="Ligamentous injuries"></option>
+                            <option value="Plantar Fascitis"></option>
+                            <option value="Geriatric Care"></option>
+                            <option value="Deconditioning"></option>
+                            <option value="Ambulation Training"></option>
+                            <option value="Balance and Coordination Training"></option>
+                            <option value="Pre-operative / Post-operative Care"></option>
+                            <option value="Sports-related Injuries"></option>
+                            <option value="Cerebral Palsy"></option>
+                            <option value="Developmental Delay"></option>
+                            <option value="Muscular Dystrophy"></option>
+                            <option value="Others"></option>
+                        </datalist>
+                        <p class="field-note">Categories: Neurological, Musculoskeletal, and Other Conditions.</p>
+                    </div>
+
+                    <h3 class="section-title">Emergency Contact Information</h3>
+
+                    <div class="field-row two-col">
+                        <div class="field-group">
+                            <label for="emergencyFirstName">First Name*</label>
+                            <input id="emergencyFirstName" name="emergencyFirstName" type="text" required pattern="[A-Za-z ]+" title="Letters and spaces only">
+                        </div>
+                        <div class="field-group">
+                            <label for="emergencyLastName">Last Name*</label>
+                            <input id="emergencyLastName" name="emergencyLastName" type="text" required pattern="[A-Za-z ]+" title="Letters and spaces only">
+                        </div>
+                    </div>
+
+                    <div class="field-row two-col">
+                        <div class="field-group">
+                            <label for="emergencyContactNumber">Contact Number*</label>
+                            <input id="emergencyContactNumber" name="emergencyContactNumber" type="tel" required pattern="09[0-9]{9}" maxlength="11" inputmode="numeric" title="Must start with 09 and be 11 digits">
+                        </div>
+                        <div class="field-group">
+                            <label for="emergencyGmail">Gmail (optional)</label>
+                            <input id="emergencyGmail" name="emergencyGmail" type="email">
+                        </div>
+                    </div>
+
+                    <div class="field-row single">
+                        <label for="emergencyRelation">Relation*</label>
+                        <input id="emergencyRelation" name="emergencyRelation" list="emergencyRelationOptions" type="text" required placeholder="Select or type relation">
+                        <datalist id="emergencyRelationOptions">
+                            <option value="Mother"></option>
+                            <option value="Father"></option>
+                            <option value="Sister"></option>
+                            <option value="Brother"></option>
+                            <option value="Wife"></option>
+                            <option value="Husband"></option>
+                            <option value="Auntie"></option>
+                            <option value="Uncle"></option>
+                            <option value="Others"></option>
+                        </datalist>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="submit-btn">
+                            Submit
+                        </button>
+                        <a href="index.html" class="back-link">Back to Home</a>
+                    </div>
+
+                    <p id="formMessage" class="form-message" aria-live="polite"></p>
+                </form>
+            </section>
+        </section>
+    </main>
+
+    <!-- Firebase (Firestore) for Trigger Email extension -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script>
+        (function () {
+            const firebaseConfig = {
+                apiKey: "AIzaSyAL6rvtbGZoWOQxm2o3fYxvFniwKz9GpXM",
+                authDomain: "raygain-cf637.firebaseapp.com",
+                projectId: "raygain-cf637",
+                storageBucket: "raygain-cf637.firebasestorage.app",
+                messagingSenderId: "258723115236",
+                appId: "1:258723115236:web:766902037a28c178e6fcf1",
+                measurementId: "G-7DXLCJCLVE"
+            };
+
+            if (window.firebase) {
+                if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+                window.raygainDb = firebase.firestore();
+                try { window.raygainDb.settings({ experimentalForceLongPolling: true, useFetchStreams: false, merge: true }); } catch (e) {}
+            }
+        })();
+    </script>
+    <script src="inquire.js"></script>
+</body>
+</html>

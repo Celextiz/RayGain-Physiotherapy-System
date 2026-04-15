@@ -1,0 +1,586 @@
+:root {
+    --teal-700: #24707a;
+    --teal-600: #2f9ea6;
+    --teal-500: #44c8cc;
+    --teal-300: #95ece8;
+    --paper: #f3f4f6;
+    --ink: #141414;
+    --line: #b8bcc2;
+    --panel: rgba(243, 244, 246, 0.96);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    min-height: 100%;
+}
+
+body {
+    font-family: "Roboto", sans-serif;
+    color: var(--ink);
+    background: #29abb1;
+}
+
+.inquire-page {
+    min-height: 100vh;
+    padding: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.inquire-layout {
+    width: min(1380px, 100%);
+    min-height: calc(100vh - 76px);
+    display: grid;
+    grid-template-columns: 1.05fr 1fr;
+    border-radius: 36px;
+    overflow: hidden;
+    box-shadow:
+        0 24px 60px rgba(9, 76, 60, 0.28),
+        0 0 0 1px rgba(255, 255, 255, 0.35);
+    background: #f4f4f5;
+}
+
+.inquire-left {
+    padding: 36px 46px 40px;
+    background-image:
+        linear-gradient(100deg, rgba(13, 77, 88, 0.52) 0%, rgba(13, 77, 88, 0.42) 36%, rgba(215, 246, 245, 0.46) 100%),
+        url("images/background inquire.png");
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 22px;
+    position: relative;
+}
+
+.brand {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 22px;
+    text-decoration: none;
+}
+
+.brand-logo {
+    width: 128px;
+    height: 128px;
+    border-radius: 50%;
+    object-fit: contain;
+    background: transparent;
+    border: none;
+    image-rendering: -webkit-optimize-contrast;
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.18));
+}
+
+.brand-name {
+    font-size: 2.65rem;
+    font-weight: 800;
+    color: #7acecb !important;
+    letter-spacing: 0.2px;
+    text-shadow: none;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.left-copy {
+    max-width: 560px;
+    margin-top: auto;
+}
+
+.left-copy h1 {
+    margin: 0;
+    font-size: clamp(2.4rem, 4.1vw, 4.2rem);
+    line-height: 1.04;
+    letter-spacing: -0.03em;
+    max-width: 11ch;
+    color: #7acecb;
+}
+
+.left-kicker {
+    position: static;
+    margin: 0 0 10px;
+    font-size: 1.02rem;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: #effcfb;
+    font-weight: 800;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.inquire-form-panel {
+    background: #ebebee;
+    margin: 20px;
+    border-radius: 20px;
+    padding: 32px 34px 28px;
+    border-left: none;
+    max-height: none;
+    overflow: visible;
+}
+
+.inquire-form-panel h2 {
+    margin: 0 0 18px;
+    color: #1d5258;
+    font-size: 1.45rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+#inquireForm {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.section-title {
+    margin: 6px 0 0;
+    color: #1f6168;
+    font-size: 1.02rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.field-row.single {
+    display: flex;
+    flex-direction: column;
+}
+
+.field-row.two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.field-row.three-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+}
+
+.field-group {
+    display: flex;
+    flex-direction: column;
+}
+
+label {
+    font-size: 0.92rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #2f2f2f;
+}
+
+input,
+select,
+textarea {
+    width: 100%;
+    border: none;
+    border-bottom: 1px solid var(--line);
+    background: transparent;
+    color: #232323;
+    font-size: 0.98rem;
+    font-family: "Roboto", sans-serif;
+    padding: 8px 2px;
+    outline: none;
+    transition: border-color 0.22s ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-bottom-color: var(--teal-600);
+}
+
+textarea {
+    resize: vertical;
+    min-height: 92px;
+}
+
+.field-note {
+    margin: 8px 0 0;
+    font-size: 0.84rem;
+    color: #3a676c;
+}
+
+.hidden-field {
+    display: none;
+}
+
+.budget-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.budget-chip {
+    border: 1px solid #bfc4ca;
+    border-radius: 10px;
+    background: #f0f2f4;
+    color: #46484b;
+    padding: 9px 12px;
+    font-size: 0.84rem;
+    font-family: "Roboto", sans-serif;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.budget-chip:hover {
+    border-color: var(--teal-500);
+    color: #18474d;
+}
+
+.budget-chip.active {
+    background: #d9f5f3;
+    border-color: var(--teal-500);
+    color: #1f6670;
+    font-weight: 700;
+}
+
+.form-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: 4px;
+}
+
+.submit-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 18px;
+    background: #44c8cc;
+    color: #083c3a;
+    font-size: 1rem;
+    font-weight: 800;
+    font-family: "Roboto", sans-serif;
+    cursor: pointer;
+    box-shadow: 0 6px 16px rgba(32, 135, 113, 0.3);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.submit-btn:hover {
+    transform: translateY(-1px);
+    background: #3ab9be;
+    box-shadow: 0 10px 20px rgba(32, 135, 113, 0.35);
+}
+
+.back-link {
+    color: #245f67;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.93rem;
+}
+
+.back-link:hover {
+    text-decoration: underline;
+}
+
+.form-message {
+    min-height: 18px;
+    margin: 2px 0 0;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #24707a;
+}
+
+.field-error {
+    margin: 6px 0 0;
+    font-size: 0.82rem;
+    color: #c23636;
+    display: none;
+}
+
+.field-error.is-visible {
+    display: block;
+}
+
+@media (max-width: 980px) {
+    .inquire-page {
+        padding: 16px;
+    }
+
+    .inquire-layout {
+        grid-template-columns: 1fr;
+        min-height: auto;
+        border-radius: 22px;
+    }
+
+    .inquire-left {
+        min-height: 420px;
+        padding: 28px 24px 24px;
+    }
+
+    .brand-name {
+        font-size: 2.1rem;
+    }
+
+    .left-kicker {
+        font-size: 0.9rem;
+    }
+
+    .left-copy h1 {
+        font-size: clamp(2rem, 6vw, 3rem);
+    }
+
+    .left-copy h1 {
+        max-width: none;
+    }
+
+    .inquire-form-panel {
+        margin: 0;
+        border-radius: 0;
+        border-top: 1px solid rgba(27, 76, 86, 0.12);
+        max-height: none;
+    }
+}
+
+@media (max-width: 680px) {
+    .inquire-left {
+        padding: 24px 20px 28px;
+    }
+
+    .inquire-form-panel {
+        padding: 24px 20px;
+    }
+
+    .brand-logo {
+        width: 108px;
+        height: 108px;
+    }
+
+    .brand-name {
+        font-size: 1.6em;
+    }
+
+    .brand {
+        gap: 14px;
+    }
+
+    .field-row.two-col {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    .field-row.three-col {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    .form-actions {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 560px) {
+    .inquire-page {
+        padding: 10px;
+        align-items: flex-start;
+    }
+
+    .inquire-layout {
+        border-radius: 14px;
+        min-height: auto;
+    }
+
+    .inquire-left {
+        min-height: 230px;
+        gap: 12px;
+        padding: 16px 14px 18px;
+    }
+
+    .brand {
+        gap: 10px;
+    }
+
+    .brand-logo {
+        width: 76px;
+        height: 76px;
+    }
+
+    .brand-name {
+        font-size: 1.2rem;
+    }
+
+    .left-kicker {
+        margin-bottom: 6px;
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+    }
+
+    .left-copy h1 {
+        font-size: 1.46rem;
+        line-height: 1.16;
+        letter-spacing: -0.01em;
+        max-width: 19ch;
+    }
+
+    .inquire-form-panel {
+        margin: 0;
+        border-radius: 0;
+        padding: 16px 14px 18px;
+    }
+
+    .inquire-form-panel h2 {
+        font-size: 1.02rem;
+        margin-bottom: 10px;
+    }
+
+    #inquireForm {
+        gap: 12px;
+    }
+
+    .section-title {
+        font-size: 0.8rem;
+        margin-top: 2px;
+    }
+
+    label {
+        font-size: 0.82rem;
+        margin-bottom: 6px;
+    }
+
+    input,
+    select,
+    textarea {
+        font-size: 0.9rem;
+        padding: 7px 2px;
+    }
+
+    .field-note {
+        font-size: 0.76rem;
+        line-height: 1.4;
+    }
+
+    .submit-btn {
+        width: 100%;
+        justify-content: center;
+        padding: 10px 14px;
+        font-size: 0.88rem;
+        border-radius: 8px;
+    }
+
+    .form-actions {
+        width: 100%;
+        gap: 10px;
+        align-items: stretch;
+    }
+
+    .back-link {
+        width: 100%;
+        text-align: center;
+        font-size: 0.82rem;
+    }
+
+    .form-message,
+    .field-error {
+        font-size: 0.78rem;
+    }
+}
+
+@media (max-width: 420px) {
+    .inquire-page {
+        padding: 8px;
+    }
+
+    .inquire-layout {
+        border-radius: 12px;
+    }
+
+    .inquire-left {
+        min-height: 208px;
+        padding: 14px 12px 16px;
+    }
+
+    .brand-logo {
+        width: 68px;
+        height: 68px;
+    }
+
+    .brand-name {
+        font-size: 1.08rem;
+    }
+
+    .left-copy h1 {
+        font-size: 1.26rem;
+        max-width: 22ch;
+    }
+
+    .inquire-form-panel {
+        padding: 14px 12px 16px;
+    }
+
+    .inquire-form-panel h2 {
+        font-size: 0.95rem;
+        letter-spacing: 0.04em;
+    }
+
+    .section-title {
+        font-size: 0.76rem;
+    }
+
+    label {
+        font-size: 0.78rem;
+    }
+
+    input,
+    select,
+    textarea {
+        font-size: 0.86rem;
+    }
+
+    .submit-btn {
+        font-size: 0.82rem;
+    }
+}
+
+@media (max-width: 390px) {
+    .inquire-left {
+        min-height: 190px;
+        padding: 12px 10px 14px;
+    }
+
+    .brand {
+        gap: 8px;
+    }
+
+    .brand-logo {
+        width: 60px;
+        height: 60px;
+    }
+
+    .brand-name {
+        font-size: 1rem;
+    }
+
+    .left-copy h1 {
+        font-size: 1.15rem;
+        line-height: 1.14;
+    }
+
+    .inquire-form-panel {
+        padding: 12px 10px 14px;
+    }
+
+    .submit-btn,
+    .back-link {
+        min-height: 44px;
+    }
+
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
