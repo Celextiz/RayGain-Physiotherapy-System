@@ -369,9 +369,21 @@
         try {
             const hasDuplicate = await hasExistingBookingForEmail(payload.gmail);
             if (hasDuplicate) {
-                message.textContent = 'you have already send your booking';
+                message.innerHTML = 'If you already have a pending booking request, please <button id="duplicateSupportBtn" type="button" style="border:none;background:none;padding:0;margin:0;color:#1f8b94;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;">contact support</button> before submitting a new appointment request.';
                 message.style.color = '#c23636';
-                alert('you have already send your booking');
+                
+                // Add event listener to the inline support button
+                const duplicateSupportBtn = document.getElementById('duplicateSupportBtn');
+                if (duplicateSupportBtn) {
+                    duplicateSupportBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const modal = document.getElementById('contactSupportModal');
+                        if (modal) {
+                            modal.style.display = 'flex';
+                            modal.setAttribute('aria-hidden', 'false');
+                        }
+                    });
+                }
                 return;
             }
 
@@ -390,4 +402,58 @@
             }
         }
     });
+})();
+
+// Contact Support Modal Handlers (Inquiry Page)
+(function(){
+    const modal = document.getElementById('contactSupportModal');
+    const closeBtn = document.getElementById('closeContactSupportModal');
+    const csCancel = document.getElementById('csCancelBtn');
+    const form = document.getElementById('contactSupportForm');
+    const submitBtn = document.getElementById('csSubmitBtn');
+    const db = window.raygainDb || null;
+
+    function openModal(){ if(modal){ modal.style.display='flex'; modal.setAttribute('aria-hidden','false'); }}
+    function closeModal(){ if(modal){ modal.style.display='none'; modal.setAttribute('aria-hidden','true'); }}
+
+    if(closeBtn) closeBtn.addEventListener('click', closeModal);
+    if(csCancel) csCancel.addEventListener('click', closeModal);
+
+    if(modal){
+        modal.addEventListener('click', function(e){
+            if(e.target === modal) closeModal();
+        });
+    }
+
+    if(form){
+        form.addEventListener('submit', async function(e){
+            e.preventDefault();
+            if(!db || typeof db.collection !== 'function'){
+                alert('Support service currently unavailable.');
+                return;
+            }
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
+            try{
+                const payload = {
+                    fullName: document.getElementById('csFullName').value.trim(),
+                    email: document.getElementById('csEmail').value.trim(),
+                    type: document.getElementById('csType').value,
+                    message: document.getElementById('csMessage').value.trim(),
+                    status: 'Pending',
+                    createdAt: new Date().toISOString()
+                };
+                await db.collection('supportRequests').add(payload);
+                alert('Support request submitted. We will contact you shortly.');
+                form.reset();
+                closeModal();
+            }catch(err){
+                console.error(err);
+                alert('Failed to submit request.');
+            }finally{
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit';
+            }
+        });
+    }
 })();

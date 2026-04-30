@@ -3039,6 +3039,7 @@ form button:hover {
 .calendar-section,
 .patients-section,
 .archive-section,
+.support-section,
 .pending-patients-section,
 .raygain-data-analytics {
     width: 100%;
@@ -3070,7 +3071,8 @@ body.dashboard-page {
 body.dashboard-page .calendar-section,
 body.dashboard-page .patients-section,
 body.dashboard-page .pending-inquiries,
-body.dashboard-page .archive-section {
+body.dashboard-page .archive-section,
+body.dashboard-page .support-section {
     background: var(--dash-surface);
     border: 1px solid var(--dash-card-border);
     border-radius: 18px;
@@ -3083,7 +3085,9 @@ body.dashboard-page .calendar-section h2,
 body.dashboard-page .patients-section h2,
 body.dashboard-page .pending-inquiries h2,
 body.dashboard-page .archive-section h2,
-body.dashboard-page .archive-section h3 {
+body.dashboard-page .archive-section h3,
+body.dashboard-page .support-section h2,
+body.dashboard-page .support-section h3 {
     color: #1f8b94;
     letter-spacing: 0.1px;
 }
@@ -3092,16 +3096,19 @@ body.dashboard-page .calendar-section,
 body.dashboard-page .patients-section,
 body.dashboard-page .pending-inquiries,
 body.dashboard-page .archive-section,
+body.dashboard-page .support-section,
 body.dashboard-page .calendar-section *:not(i):not(svg):not(path),
 body.dashboard-page .patients-section *:not(i):not(svg):not(path),
 body.dashboard-page .pending-inquiries *:not(i):not(svg):not(path),
-body.dashboard-page .archive-section *:not(i):not(svg):not(path) {
+body.dashboard-page .archive-section *:not(i):not(svg):not(path),
+body.dashboard-page .support-section *:not(i):not(svg):not(path) {
     font-family: 'Roboto', sans-serif;
 }
 
 body.dashboard-page .patients-table,
 body.dashboard-page .inquiries-table,
 body.dashboard-page .archive-section table,
+body.dashboard-page .support-section table,
 body.dashboard-page #canceledAppointmentsModal table {
     width: 100%;
     border-collapse: separate !important;
@@ -3116,6 +3123,7 @@ body.dashboard-page #canceledAppointmentsModal table {
 body.dashboard-page .patients-table thead th,
 body.dashboard-page .inquiries-table thead th,
 body.dashboard-page .archive-section table thead th,
+body.dashboard-page .support-section table thead th,
 body.dashboard-page #canceledAppointmentsModal table thead th {
     background: var(--dash-table-head) !important;
     color: #ffffff !important;
@@ -3129,6 +3137,7 @@ body.dashboard-page #canceledAppointmentsModal table thead th {
 body.dashboard-page .patients-table tbody td,
 body.dashboard-page .inquiries-table tbody td,
 body.dashboard-page .archive-section table tbody td,
+body.dashboard-page .support-section table tbody td,
 body.dashboard-page #canceledAppointmentsModal table tbody td {
     background: var(--dash-table-row);
     color: var(--dash-text);
@@ -3141,6 +3150,7 @@ body.dashboard-page #canceledAppointmentsModal table tbody td {
 body.dashboard-page .patients-table tbody tr:nth-child(even) td,
 body.dashboard-page .inquiries-table tbody tr:nth-child(even) td,
 body.dashboard-page .archive-section table tbody tr:nth-child(even) td,
+body.dashboard-page .support-section table tbody tr:nth-child(even) td,
 body.dashboard-page #canceledAppointmentsModal table tbody tr:nth-child(even) td {
     background: var(--dash-table-row-alt);
 }
@@ -3148,6 +3158,7 @@ body.dashboard-page #canceledAppointmentsModal table tbody tr:nth-child(even) td
 body.dashboard-page .patients-table tbody tr:hover td,
 body.dashboard-page .inquiries-table tbody tr:hover td,
 body.dashboard-page .archive-section table tbody tr:hover td,
+body.dashboard-page .support-section table tbody tr:hover td,
 body.dashboard-page #canceledAppointmentsModal table tbody tr:hover td {
     background: var(--dash-table-row-hover);
 }

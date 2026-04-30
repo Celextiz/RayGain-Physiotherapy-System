@@ -177,6 +177,45 @@
                 </form>
             </section>
         </section>
+
+        <!-- Contact Support Modal (Patient Side - Inquiry Page) -->
+        <div id="contactSupportModal" class="modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;justify-content:center;align-items:center;" aria-hidden="true;">
+            <div class="modal-content" style="background:#fff;max-width:640px;margin:48px auto;padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);position:relative;">
+                <div class="modal-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                    <h2 id="contactSupportTitle" style="margin:0;font-size:1.5em;color:#2ecac8;">Contact Support</h2>
+                    <button id="closeContactSupportModal" class="icon-btn" type="button" style="border:none;background:none;font-size:1.5em;cursor:pointer;color:#999;">✖</button>
+                </div>
+                <form id="contactSupportForm" style="display:flex;flex-direction:column;gap:12px;">
+                    <div style="display:flex;flex-direction:column;">
+                        <label for="csFullName" style="font-weight:600;margin-bottom:4px;">Full Name</label>
+                        <input id="csFullName" type="text" required style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;">
+                    </div>
+                    <div style="display:flex;flex-direction:column;">
+                        <label for="csEmail" style="font-weight:600;margin-bottom:4px;">Email Address</label>
+                        <input id="csEmail" type="email" required style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;">
+                    </div>
+                    <div style="display:flex;flex-direction:column;">
+                        <label for="csType" style="font-weight:600;margin-bottom:4px;">Concern Type</label>
+                        <select id="csType" required style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;">
+                            <option value="Existing booking">Existing pending/unconfirmed appointment</option>
+                            <option value="Reschedule">Need to reschedule</option>
+                            <option value="Cancel">Need to cancel booking</option>
+                            <option value="No confirmation">Did not receive confirmation email</option>
+                            <option value="Wrong details">Wrong details submitted</option>
+                            <option value="Other">Other concerns</option>
+                        </select>
+                    </div>
+                    <div style="display:flex;flex-direction:column;">
+                        <label for="csMessage" style="font-weight:600;margin-bottom:4px;">Message / Explanation</label>
+                        <textarea id="csMessage" rows="5" required style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;"></textarea>
+                    </div>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+                        <button type="button" id="csCancelBtn" class="btn" style="padding:8px 16px;background:#ddd;color:#333;border:none;border-radius:4px;cursor:pointer;">Cancel</button>
+                        <button type="submit" id="csSubmitBtn" class="btn primary" style="padding:8px 16px;background:#1976D2;color:#fff;border:none;border-radius:4px;cursor:pointer;">Submit</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </main>
 
     <!-- Firebase (Firestore) for Trigger Email extension -->

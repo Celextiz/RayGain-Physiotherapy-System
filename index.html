@@ -955,14 +955,96 @@
                     <div id="duplicateWarning" style="display:none;">
                         <div style="text-align:center;padding:20px;">
                             <div style="font-size:48px;margin-bottom:16px;">📋</div>
-                            <h2 style="color:#2ecac8;margin:0 0 16px 0;font-size:1.5em;">You already Signed the Form!</h2>
-                            <p style="font-size:1.1em;color:#555;margin:12px 0 24px 0;line-height:1.6;">Please wait for your Appointment Schedule.<br/><strong>See you Soon! 💚</strong></p>
+                            <h2 style="color:#2ecac8;margin:0 0 16px 0;font-size:1.5em;">You already submitted a booking request</h2>
+                            <p style="font-size:1.1em;color:#555;margin:12px 0 24px 0;line-height:1.6;">If you already have a pending booking request, please <button id="openContactSupportFromDuplicate" type="button" style="border:none;background:none;padding:0;margin:0;color:#1f8b94;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;">contact support</button> before submitting a new appointment request.</p>
                         </div>
                         <div style="background:#e8f5f4;border-left:4px solid #2ecac8;border-radius:6px;padding:16px;margin:20px 0;text-align:left;">
                             <p style="margin:0 0 12px 0;font-weight:600;color:#2ecac8;font-size:1.05em;">⚠️ Important Reminder:</p>
                             <p style="margin:0;font-size:0.95rem;line-height:1.6;color:#333;">If you cannot attend your scheduled appointment, please contact us to reschedule. <strong>Arriving more than 30 minutes late will result in automatic cancellation</strong> of your reservation for that day. Thank you for your understanding.</p>
                         </div>
                     </div>
+
+                    <!-- Contact Support Modal (Patient Side) -->
+                    <div id="contactSupportModal" class="modal" style="display:none;" aria-hidden="true;">
+                        <div class="modal-content" style="max-width:640px;margin:48px auto;padding:20px;">
+                            <div class="modal-header">
+                                <h2 id="contactSupportTitle">Contact Support</h2>
+                                <button id="closeContactSupportModal" class="icon-btn">✖</button>
+                            </div>
+                            <form id="contactSupportForm" class="form">
+                                <div class="form-row">
+                                    <label for="csFullName">Full Name</label>
+                                    <input id="csFullName" type="text" required style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;">
+                                </div>
+                                <div class="form-row">
+                                    <label for="csEmail">Email Address</label>
+                                    <input id="csEmail" type="email" required style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;">
+                                </div>
+                                <div class="form-row">
+                                    <label for="csType">Concern Type</label>
+                                    <select id="csType" required style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;">
+                                        <option value="Existing booking">Existing pending/unconfirmed appointment</option>
+                                        <option value="Reschedule">Need to reschedule</option>
+                                        <option value="Cancel">Need to cancel booking</option>
+                                        <option value="No confirmation">Did not receive confirmation email</option>
+                                        <option value="Wrong details">Wrong details submitted</option>
+                                        <option value="Other">Other concerns</option>
+                                    </select>
+                                </div>
+                                <div class="form-row">
+                                    <label for="csMessage">Message / Explanation</label>
+                                    <textarea id="csMessage" rows="5" required style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;"></textarea>
+                                </div>
+                                <div class="modal-actions" style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+                                    <button type="button" id="csCancelBtn" class="btn">Cancel</button>
+                                    <button type="submit" id="csSubmitBtn" class="btn primary">Submit</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <script>
+                        (function(){
+                            const openBtn = document.getElementById('openContactSupportFromDuplicate');
+                            const modal = document.getElementById('contactSupportModal');
+                            const closeBtn = document.getElementById('closeContactSupportModal');
+                            const csCancel = document.getElementById('csCancelBtn');
+                            const form = document.getElementById('contactSupportForm');
+                            const submitBtn = document.getElementById('csSubmitBtn');
+
+                            function openModal(){ if(modal){ modal.style.display='block'; modal.setAttribute('aria-hidden','false'); }}
+                            function closeModal(){ if(modal){ modal.style.display='none'; modal.setAttribute('aria-hidden','true'); }}
+
+                            if(openBtn) openBtn.addEventListener('click', openModal);
+                            if(closeBtn) closeBtn.addEventListener('click', closeModal);
+                            if(csCancel) csCancel.addEventListener('click', closeModal);
+
+                            form && form.addEventListener('submit', async function(e){
+                                e.preventDefault();
+                                if(!window.db || typeof db.collection !== 'function'){
+                                    alert('Support service currently unavailable.');
+                                    return;
+                                }
+                                submitBtn.disabled = true; submitBtn.textContent = 'Submitting...';
+                                try{
+                                    const payload = {
+                                        fullName: document.getElementById('csFullName').value.trim(),
+                                        email: document.getElementById('csEmail').value.trim(),
+                                        type: document.getElementById('csType').value,
+                                        message: document.getElementById('csMessage').value.trim(),
+                                        status: 'Pending',
+                                        createdAt: new Date().toISOString()
+                                    };
+                                    await db.collection('supportRequests').add(payload);
+                                    alert('Support request submitted. We will contact you shortly.');
+                                    form.reset();
+                                    closeModal();
+                                }catch(err){
+                                    console.error(err); alert('Failed to submit request.');
+                                }finally{ submitBtn.disabled = false; submitBtn.textContent = 'Submit'; }
+                            });
+                        })();
+                    </script>
                     <button id="doneBtn" class="done-btn">Close</button>
                 </div>
             </div>

@@ -840,6 +840,11 @@
                         <span id="archiveBadge" class="notification-badge" style="display: none;">0</span>
                     </a>
                 </li>
+                <li>
+                    <a href="javascript:void(0)" id="supportRequestsBtn">Contact Support
+                        <span id="supportBadge" class="notification-badge" style="display:none;">0</span>
+                    </a>
+                </li>
                 <li><a href="javascript:void(0)" id="logoutBtn">Log Out</a></li>
             </ul>
         </aside>
@@ -1000,6 +1005,180 @@
                         </form>
                     </div>
                 </div>
+            </section>
+
+        <!-- CONTACT SUPPORT SECTION -->
+            <section class="support-section" id="supportRequestsSection" style="display:none;">
+                <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:1rem;">
+                    <h2 class="section-title-table">Contact Support</h2>
+                    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;">
+                        <div style="display:flex;align-items:center;border:1px solid #ddd;border-radius:4px;padding:0;background:#fff;min-width:320px;">
+                            <input id="supportSearchInput" type="text" placeholder="Search name, email, message..." style="border:none;padding:8px 12px;outline:none;flex:1;font-size:0.95rem;">
+                            <button id="supportSearchBtn" class="search-btn" type="button" style="border:none;background:none;padding:8px 12px;cursor:pointer;display:flex;align-items:center;color:#666;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <path d="m21 21-4.35-4.35"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <select id="supportFilterStatus" style="padding:8px;border:1px solid #ddd;border-radius:4px;">
+                                <option value="all">All Statuses</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Resolved">Resolved</option>
+                            </select>
+                            <button id="clearSupportQueueBtn" class="btn" style="background:#1976D2;color:#fff;border:none;border-radius:4px;">Clear Booking Queue</button>
+                        </div>
+                    </div>
+                </div>
+
+                <table id="supportRequestsTable" style="width:100%;border-collapse:collapse;margin-bottom:1rem;">
+                    <thead>
+                        <tr>
+                            <th style="width:140px;">Ticket ID</th>
+                            <th>Patient Name</th>
+                            <th>Email</th>
+                            <th>Concern Type</th>
+                            <th>Message</th>
+                            <th style="width:160px;">Date Submitted</th>
+                            <th style="width:110px;">Status</th>
+                            <th style="width:220px;text-align:center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="supportRequestsTableBody"></tbody>
+                </table>
+
+                <!-- View / Reply Modal -->
+                <div id="supportViewModal" class="modal hidden" aria-hidden="true" role="dialog" style="z-index:11005;">
+                    <div class="modal-content" style="max-width:760px;margin:48px auto;padding:20px;">
+                        <div class="modal-header">
+                            <h2 id="supportViewTitle">Support Request</h2>
+                            <button id="closeSupportViewModal" class="icon-btn">✖</button>
+                        </div>
+                        <div id="supportViewBody" style="margin-top:12px;">
+                        </div>
+                        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+                            <button id="supportReplyBtn" class="btn">Reply (mailto)</button>
+                            <button id="supportMarkResolvedBtn" class="btn primary">Mark Resolved</button>
+                            <button id="supportDeleteBtn" class="btn danger">Delete</button>
+                        </div>
+                    </div>
+                </div>
+
+                <script>
+                    (function(){
+                        const sectionBtn = document.getElementById('supportRequestsBtn');
+                        const supportSection = document.getElementById('supportRequestsSection');
+                        const supportBody = document.getElementById('supportRequestsTableBody');
+                        const supportSearch = document.getElementById('supportSearchInput');
+                        const supportFilter = document.getElementById('supportFilterStatus');
+                        const supportBadge = document.getElementById('supportBadge');
+
+                        const viewModal = document.getElementById('supportViewModal');
+                        const viewBody = document.getElementById('supportViewBody');
+                        const closeView = document.getElementById('closeSupportViewModal');
+                        const replyBtn = document.getElementById('supportReplyBtn');
+                        const markResolvedBtn = document.getElementById('supportMarkResolvedBtn');
+                        const deleteBtn = document.getElementById('supportDeleteBtn');
+
+                        let requests = [];
+                        let selectedRequest = null;
+
+                        if(sectionBtn) sectionBtn.onclick = () => showSection('supportRequestsSection');
+
+                        function renderRow(req){
+                            const id = req.id;
+                            const created = req.createdAt ? new Date(req.createdAt).toLocaleString() : '';
+                            return `<tr data-id="${id}"><td style="padding:8px;">${id}</td><td style="padding:8px;">${escapeHtml(req.fullName||'')}</td><td style="padding:8px;">${escapeHtml(req.email||'')}</td><td style="padding:8px;">${escapeHtml(req.type||'')}</td><td style="padding:8px;max-width:360px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(req.message||'')}</td><td style="padding:8px;">${created}</td><td style="padding:8px;">${escapeHtml(req.status||'Pending')}</td><td style="padding:8px;text-align:center;"><button class="btn small view-support-btn" data-id="${id}">View</button> <button class="btn small reply-support-btn" data-id="${id}">Reply</button> <button class="btn small" data-action="resolve" data-id="${id}">Mark Resolved</button> <button class="btn small danger" data-action="delete" data-id="${id}">Delete</button></td></tr>`;
+                        }
+
+                        function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]; }); }
+
+                        async function loadSupportRequests(){
+                            if(!window.db || typeof db.collection !== 'function') return;
+                            try{
+                                const snap = await db.collection('supportRequests').orderBy('createdAt','desc').get();
+                                requests = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+                                renderSupportTable();
+                            }catch(e){ console.error('Failed to load support requests', e); }
+                        }
+
+                        function renderSupportTable(){
+                            const q = (supportSearch && supportSearch.value || '').trim().toLowerCase();
+                            const statusFilter = supportFilter && supportFilter.value;
+                            const rows = requests.filter(r=>{
+                                if(statusFilter && statusFilter!=='all' && r.status!==statusFilter) return false;
+                                if(q){ const hay = `${r.fullName||''} ${r.email||''} ${r.message||''} ${r.type||''}`.toLowerCase(); return hay.includes(q); }
+                                return true;
+                            });
+                            supportBody.innerHTML = rows.map(renderRow).join('') || '<tr><td colspan="8" style="padding:12px;color:#666;text-align:center;">No support requests found.</td></tr>';
+                            // bind handlers
+                            supportBody.querySelectorAll('.view-support-btn').forEach(b=>b.onclick=async ()=>{ const id=b.dataset.id; await openViewModal(id); });
+                            supportBody.querySelectorAll('.reply-support-btn').forEach(b=>b.onclick=async ()=>{ const id=b.dataset.id; await replyToRequest(id); });
+                            supportBody.querySelectorAll('button[data-action="resolve"]').forEach(b=>b.onclick=async ()=>{ await markResolved(b.dataset.id); });
+                            supportBody.querySelectorAll('button[data-action="delete"]').forEach(b=>b.onclick=async ()=>{ await deleteRequest(b.dataset.id); });
+                            // update badge
+                            const pending = requests.filter(r=>r.status==='Pending').length;
+                            if(supportBadge){ if(pending>0){ supportBadge.style.display='inline-block'; supportBadge.textContent = pending; } else { supportBadge.style.display='none'; }}
+                        }
+
+                        async function openViewModal(id){
+                            selectedRequest = requests.find(r=>r.id===id);
+                            if(!selectedRequest) return alert('Request not found');
+                            if(viewBody) viewBody.innerHTML = `
+                                <p><strong>From:</strong> ${escapeHtml(selectedRequest.fullName||'')} &lt;${escapeHtml(selectedRequest.email||'')}&gt;</p>
+                                <p><strong>Type:</strong> ${escapeHtml(selectedRequest.type||'')}</p>
+                                <p><strong>Submitted:</strong> ${selectedRequest.createdAt ? new Date(selectedRequest.createdAt).toLocaleString() : ''}</p>
+                                <hr>
+                                <div style="white-space:pre-wrap;">${escapeHtml(selectedRequest.message||'')}</div>
+                            `;
+                            viewModal.classList.remove('hidden'); viewModal.setAttribute('aria-hidden','false');
+                        }
+
+                        async function replyToRequest(id){
+                            const r = requests.find(x=>x.id===id); if(!r) return alert('Request not found');
+                            const subject = encodeURIComponent('Re: Support Request from RayGain');
+                            const body = encodeURIComponent('\n\n---\nSupport Ticket: '+id+'\nOriginal message:\n'+(r.message||''));
+                            window.location = `mailto:${encodeURIComponent(r.email)}?subject=${subject}&body=${body}`;
+                            // record reply note
+                            try{ await db.collection('supportRequests').doc(id).set({ lastRepliedAt: new Date().toISOString() }, { merge:true }); await loadSupportRequests(); }catch(e){ console.warn(e); }
+                        }
+
+                        async function markResolved(id){
+                            if(!confirm('Mark this request as resolved?')) return;
+                            try{ await db.collection('supportRequests').doc(id).update({ status:'Resolved', resolvedAt: new Date().toISOString() }); await loadSupportRequests(); }catch(e){ console.error(e); alert('Failed to update.'); }
+                        }
+
+                        async function deleteRequest(id){
+                            if(!confirm('Delete this support request? This cannot be undone.')) return;
+                            try{ await db.collection('supportRequests').doc(id).delete(); await loadSupportRequests(); }catch(e){ console.error(e); alert('Failed to delete.'); }
+                        }
+
+                        if(closeView) closeView.onclick = ()=>{ viewModal.classList.add('hidden'); viewModal.setAttribute('aria-hidden','true'); };
+                        if(markResolvedBtn) markResolvedBtn.onclick = async ()=>{ if(selectedRequest) await markResolved(selectedRequest.id); };
+                        if(deleteBtn) deleteBtn.onclick = async ()=>{ if(selectedRequest) await deleteRequest(selectedRequest.id); };
+                        if(replyBtn) replyBtn.onclick = async ()=>{ if(selectedRequest) await replyToRequest(selectedRequest.id); };
+
+                        if(supportSearch) supportSearch.addEventListener('input', ()=> renderSupportTable());
+                        if(supportFilter) supportFilter.addEventListener('change', ()=> renderSupportTable());
+                        if(document.getElementById('clearSupportQueueBtn')) document.getElementById('clearSupportQueueBtn').onclick = async ()=>{
+                            if(!confirm('Clear all pending support requests by marking them Resolved?')) return;
+                            try{
+                                const batch = db.batch();
+                                requests.filter(r=>r.status==='Pending').forEach(r=>{ const ref = db.collection('supportRequests').doc(r.id); batch.update(ref,{ status:'Resolved', resolvedAt: new Date().toISOString() }); });
+                                await batch.commit();
+                                await loadSupportRequests();
+                            }catch(e){ console.error(e); alert('Failed to clear queue.'); }
+                        };
+
+                        // realtime badge subscription
+                        function subscribeSupportBadge(){ if(!window.db || typeof db.collection !== 'function') return; db.collection('supportRequests').where('status','==','Pending').onSnapshot(snap=>{ const n = snap.size; if(supportBadge){ if(n>0){ supportBadge.style.display='inline-block'; supportBadge.textContent = n; } else { supportBadge.style.display='none'; } } }); }
+
+                        // init load
+                        subscribeSupportBadge(); loadSupportRequests();
+                    })();
+                </script>
+
             </section>
 
         <!-- ARCHIVE SECTION -->
@@ -3842,6 +4021,28 @@
         hasDashboardSession = false;
     }
     if (!hasDashboardSession) {
+        let isFramed = false;
+        try { isFramed = window.self !== window.top; } catch (error) { isFramed = true; }
+        const isFileProtocol = window.location.protocol === 'file:';
+
+        // In file:// iframe previews, redirecting can trigger browser security blocks
+        // and leaves a blank page. Show a recovery message with safe URLs instead.
+        if (isFileProtocol && isFramed) {
+            document.body.innerHTML = `
+                <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;font-family:Arial,sans-serif;background:#f5fbfd;color:#17343f;">
+                    <div style="max-width:720px;background:#fff;border:1px solid #cde0e8;border-radius:14px;padding:22px;box-shadow:0 10px 30px rgba(16,58,71,.12);">
+                        <h2 style="margin:0 0 10px 0;">Open Dashboard Over HTTP</h2>
+                        <p style="margin:0 0 8px 0;line-height:1.6;">This page is running in <strong>file:// preview</strong>, which blocks some navigation and can appear blank.</p>
+                        <p style="margin:0 0 14px 0;line-height:1.6;">Open one of these URLs in your browser:</p>
+                        <p style="margin:0 0 8px 0;"><a href="http://localhost:8000/login.html">http://localhost:8000/login.html</a></p>
+                        <p style="margin:0 0 16px 0;"><a href="http://localhost:8000/therapist-dashboard.html">http://localhost:8000/therapist-dashboard.html</a></p>
+                        <p style="margin:0;color:#4e6a76;">After login, you will be redirected to the dashboard.</p>
+                    </div>
+                </div>
+            `;
+            throw new Error('Dashboard blocked in file:// iframe preview; open via http://localhost:8000');
+        }
+
         window.location.replace('login.html');
     }
 
@@ -3859,41 +4060,56 @@
         }
     }, true);
 
+    // If the page is opened via file://, prevent clicks that try to load other
+    // local HTML files into frames or windows (causes browser security warnings).
+    if (window.location.protocol === 'file:') {
+        document.addEventListener('click', (event) => {
+            const a = event.target.closest('a[href]');
+            if (!a) return;
+            const href = a.getAttribute('href') || '';
+            // block navigation to .html files (including anchors) when using file://
+            if (/\.html(\b|#)/i.test(href) && href.indexOf('http') !== 0) {
+                event.preventDefault();
+                console.warn('Blocked local file navigation while running from file://. Use http://localhost:8000 to test.');
+                const notice = document.getElementById('fileProtocolNotice');
+                if (notice) notice.style.display = 'block';
+            }
+        }, true);
+    }
+
     // Sidebar navigation
-    document.getElementById('dashboardBtn').onclick = (e) => {
-        e.preventDefault();
-        showSection('raygainDataSection');
-    };
-    document.getElementById('pendingPatientsBtn').onclick = (e) => {
-        e.preventDefault();
-        showSection('pendingInquiriesSection');
-    };
-    document.getElementById('archiveBtn').onclick = (e) => {
-        e.preventDefault();
-        showSection('archiveSection');
-    };
-    document.getElementById('appointmentsBtn').onclick = (e) => {
-        e.preventDefault();
-        showSection('clinicCalendarSection');
-    };
-    document.getElementById('patientsBtn').onclick = (e) => {
-        e.preventDefault();
-        showSection('patientsSection');
-    };
-    document.getElementById('logoutBtn').onclick = (e) => {
-        e.preventDefault();
-        const shouldLogout = window.confirm('Are you sure you want to log out?');
-        if (!shouldLogout) return;
-        try {
-            sessionStorage.removeItem(AUTH_SESSION_KEY);
-            sessionStorage.removeItem(LEGACY_AUTH_SESSION_KEY);
-            sessionStorage.removeItem('raygainTherapistLoginAt');
-        } catch (error) {
-            // Ignore storage errors.
-        }
-        sessionStorage.clear();
-        window.location.replace('login.html');
-    };
+    function bindSidebarNav(buttonId, sectionId) {
+        const el = document.getElementById(buttonId);
+        if (!el) return;
+        el.onclick = (e) => {
+            e.preventDefault();
+            showSection(sectionId);
+        };
+    }
+
+    bindSidebarNav('dashboardBtn', 'raygainDataSection');
+    bindSidebarNav('pendingPatientsBtn', 'pendingInquiriesSection');
+    bindSidebarNav('archiveBtn', 'archiveSection');
+    bindSidebarNav('appointmentsBtn', 'clinicCalendarSection');
+    bindSidebarNav('patientsBtn', 'patientsSection');
+
+    const logoutBtnEl = document.getElementById('logoutBtn');
+    if (logoutBtnEl) {
+        logoutBtnEl.onclick = (e) => {
+            e.preventDefault();
+            const shouldLogout = window.confirm('Are you sure you want to log out?');
+            if (!shouldLogout) return;
+            try {
+                sessionStorage.removeItem(AUTH_SESSION_KEY);
+                sessionStorage.removeItem(LEGACY_AUTH_SESSION_KEY);
+                sessionStorage.removeItem('raygainTherapistLoginAt');
+            } catch (error) {
+                // Ignore storage errors.
+            }
+            sessionStorage.clear();
+            window.location.replace('login.html');
+        };
+    }
 
     // Appointments Card 'View All' link
     const viewAllAppointmentsLink = document.getElementById('viewAllAppointmentsLink');
@@ -4274,7 +4490,7 @@
         }
     });
 
-    const DASHBOARD_SECTION_IDS = ['clinicCalendarSection','patientsSection','raygainDataSection','pendingInquiriesSection','archiveSection'];
+    const DASHBOARD_SECTION_IDS = ['clinicCalendarSection','patientsSection','raygainDataSection','pendingInquiriesSection','supportRequestsSection','archiveSection'];
     const SECTION_STORAGE_KEY = 'raygainActiveSection';
     const SESSIONS_MODAL_STORAGE_KEY = 'raygainPatientSessionsOpen';
     const SESSIONS_PATIENT_ID_KEY = 'raygainPatientSessionsPatientId';
@@ -4315,12 +4531,15 @@
         if (next.tab) params.set('tab', next.tab);
 
         const nextHash = params.toString();
-        const url = new URL(window.location.href);
-        url.hash = nextHash;
-        try {
-            window.history.replaceState(null, '', url.toString());
-        } catch (error) {
-            window.location.hash = nextHash;
+        const isFileProtocol = window.location.protocol === 'file:';
+        if (!isFileProtocol) {
+            const url = new URL(window.location.href);
+            url.hash = nextHash;
+            try {
+                window.history.replaceState(null, '', url.toString());
+            } catch (error) {
+                window.location.hash = nextHash;
+            }
         }
 
         try {
@@ -4371,9 +4590,10 @@
             clinicCalendarSection: 'appointmentsBtn',
             patientsSection: 'patientsBtn',
             pendingInquiriesSection: 'pendingPatientsBtn',
+            supportRequestsSection: 'supportRequestsBtn',
             archiveSection: 'archiveBtn'
         };
-        const menuIds = ['dashboardBtn', 'appointmentsBtn', 'patientsBtn', 'pendingPatientsBtn', 'archiveBtn'];
+        const menuIds = ['dashboardBtn', 'appointmentsBtn', 'patientsBtn', 'pendingPatientsBtn', 'supportRequestsBtn', 'archiveBtn'];
         menuIds.forEach(menuId => {
             const menuEl = document.getElementById(menuId);
             if (menuEl) menuEl.classList.toggle('active-menu', menuId === sectionToMenuId[id]);
