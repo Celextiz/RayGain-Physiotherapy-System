@@ -28,6 +28,19 @@
         return true;
     }
 
+    /** Only block a new inquiry when this email still has an open (not finished) booking request. */
+    function isBlockingInquiry(data) {
+        if (!isActiveRecord(data)) return false;
+        const status = String(data.status || '').toLowerCase();
+        // Patient already added on dashboard — allow a new inquiry / return visit.
+        if (status === 'accepted') return false;
+        return true;
+    }
+
+    function isBlockingAppointment(data) {
+        return isActiveRecord(data);
+    }
+
     async function hasExistingBookingForEmail(email) {
         if (!db) return false;
         const normalized = normalizeEmail(email);
@@ -45,7 +58,7 @@
             snap.forEach(function (doc) {
                 if (found) return;
                 const data = doc.data() || {};
-                if (isActiveRecord(data)) {
+                if (isBlockingInquiry(data)) {
                     found = true;
                 }
             });
@@ -59,7 +72,7 @@
             snap.forEach(function (doc) {
                 if (found) return;
                 const data = doc.data() || {};
-                if (isActiveRecord(data)) {
+                if (isBlockingAppointment(data)) {
                     found = true;
                 }
             });
@@ -369,13 +382,24 @@
         try {
             const hasDuplicate = await hasExistingBookingForEmail(payload.gmail);
             if (hasDuplicate) {
-                message.innerHTML = 'If you already have a pending booking request, please <button id="duplicateSupportBtn" type="button" style="border:none;background:none;padding:0;margin:0;color:#1f8b94;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;">contact support</button> before submitting a new appointment request.';
+                message.innerHTML = 'This Gmail already has an open booking request. '
+                    + '<button id="continueBookingBtn" type="button" style="border:none;background:none;padding:0;margin:0;color:#1f8b94;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;">Continue to booking</button>'
+                    + ' or '
+                    + '<button id="duplicateSupportBtn" type="button" style="border:none;background:none;padding:0;margin:0;color:#1f8b94;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;">contact support</button>.';
                 message.style.color = '#c23636';
-                
-                // Add event listener to the inline support button
+
+                const continueBookingBtn = document.getElementById('continueBookingBtn');
+                if (continueBookingBtn) {
+                    continueBookingBtn.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        sessionStorage.setItem('raygainInquiryDraft', JSON.stringify(payload));
+                        window.location.href = 'booking.html';
+                    });
+                }
+
                 const duplicateSupportBtn = document.getElementById('duplicateSupportBtn');
                 if (duplicateSupportBtn) {
-                    duplicateSupportBtn.addEventListener('click', (e) => {
+                    duplicateSupportBtn.addEventListener('click', function (e) {
                         e.preventDefault();
                         const modal = document.getElementById('contactSupportModal');
                         if (modal) {

@@ -6,9 +6,6 @@
     <title>Therapist Dashboard - RayGain Physiotherapy Clinic</title>
     <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-    <script type="text/javascript"
-        src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js">
-    </script>
     <style>
         .required-asterisk { color: #d32f2f; font-weight: 700; margin-left: 4px; }
         .day-busy { background: #fdecea; border: 1px solid #f5c6cb; }
@@ -857,8 +854,8 @@
                     <h2 class="section-title-table">Appointments</h2>
                     <div class="calendar-actions-row">
                         <button id="addScheduleBtn" class="btn primary">Add Schedule</button>
-                        <button id="openCanceledAppointmentsBtn" class="btn primary">Appointment Cancellation</button>
-                        <button id="openManageAppointmentsBtn" class="btn primary">Manage Appointments</button>
+                        <button id="openCanceledAppointmentsBtn" class="btn primary">Manage Canceled Appointments</button>
+                        <button id="openManageAppointmentsBtn" class="btn primary">Manage Calendar</button>
                     </div>
                 </div>
                 <div class="calendar-controls">
@@ -868,7 +865,7 @@
                 </div>
                 <section class="calendar" id="calendar"></section>
 
-                <div id="manageAppointmentsModal" class="modal hidden" aria-hidden="true" role="dialog" aria-labelledby="manageAppointmentsTitle">
+                <div id="manageAppointmentsModal" class="modal hidden" aria-hidden="true" role="dialog" aria-labelledby="manageAppointmentsTitle" style="z-index:11006;">
                     <div class="modal-content" style="max-width:1120px;width:min(1120px,96vw);">
                         <div class="modal-header">
                             <h2 id="manageAppointmentsTitle">Manage Appointment Availability</h2>
@@ -923,7 +920,7 @@
                     </div>
                 </div>
 
-                <div id="scheduleModal" class="modal hidden" aria-hidden="true" role="dialog" aria-labelledby="modalTitle">
+                <div id="scheduleModal" class="modal hidden" aria-hidden="true" role="dialog" aria-labelledby="modalTitle" style="z-index:11007;">
                     <div class="modal-content">
                         <div class="modal-header">
                             <h2 id="modalTitle">Add Schedule</h2>
@@ -982,8 +979,9 @@
                         <button id="fcClose" class="icon-btn" aria-label="Close">✖</button>
                     </div>
                     <div class="floating-actions">
+                        <button id="fcReschedule" class="btn primary">Reschedule</button>
+                        <button id="fcCancel" class="btn primary">Cancel Appointment</button>
                         <button id="fcDelete" class="btn danger">Delete Appointment</button>
-                        <button id="fcCancel" class="btn primary">Canceled Appointment</button>
                     </div>
                 </div>
 
@@ -1001,6 +999,25 @@
                             <div class="modal-actions">
                                 <button type="button" id="cancelAppointmentReasonBackBtn" class="btn">Back</button>
                                 <button type="submit" class="btn danger">Confirm Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div id="deleteAppointmentReasonModal" class="modal hidden" aria-hidden="true" role="dialog" aria-labelledby="deleteAppointmentReasonTitle" style="z-index:11005;">
+                    <div class="modal-content" style="max-width:520px;">
+                        <div class="modal-header">
+                            <h2 id="deleteAppointmentReasonTitle">Delete Appointment</h2>
+                            <button id="closeDeleteAppointmentReasonModal" class="icon-btn" aria-label="Close">✖</button>
+                        </div>
+                        <form id="deleteAppointmentReasonForm" class="form">
+                            <div class="form-row">
+                                <label for="deleteAppointmentReason">Reason for deletion</label>
+                                <textarea id="deleteAppointmentReason" rows="4" required placeholder="Why is this appointment being deleted?" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px;resize:vertical;"></textarea>
+                            </div>
+                            <div class="modal-actions">
+                                <button type="button" id="deleteAppointmentReasonBackBtn" class="btn">Back</button>
+                                <button type="submit" class="btn danger">Confirm Delete</button>
                             </div>
                         </form>
                     </div>
@@ -1084,7 +1101,10 @@
                         let requests = [];
                         let selectedRequest = null;
 
-                        if(sectionBtn) sectionBtn.onclick = () => showSection('supportRequestsSection');
+                        if(sectionBtn) sectionBtn.onclick = function () {
+                            showSection('supportRequestsSection');
+                            loadSupportRequests();
+                        };
 
                         function renderRow(req){
                             const id = req.id;
@@ -1095,10 +1115,23 @@
                         function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]; }); }
 
                         async function loadSupportRequests(){
-                            if(!window.db || typeof db.collection !== 'function') return;
+                            const firestore = window.db;
+                            if(!firestore || typeof firestore.collection !== 'function') return;
                             try{
-                                const snap = await db.collection('supportRequests').orderBy('createdAt','desc').get();
-                                requests = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+                                let snap;
+                                try {
+                                    snap = await firestore.collection('supportRequests').orderBy('createdAt', 'desc').get();
+                                } catch (orderError) {
+                                    console.warn('Support orderBy failed, loading without sort:', orderError);
+                                    snap = await firestore.collection('supportRequests').get();
+                                    requests = snap.docs.map(function (d) { return { id: d.id, ...d.data() }; });
+                                    requests.sort(function (a, b) {
+                                        return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+                                    });
+                                    renderSupportTable();
+                                    return;
+                                }
+                                requests = snap.docs.map(function (d) { return { id: d.id, ...d.data() }; });
                                 renderSupportTable();
                             }catch(e){ console.error('Failed to load support requests', e); }
                         }
@@ -1141,17 +1174,17 @@
                             const body = encodeURIComponent('\n\n---\nSupport Ticket: '+id+'\nOriginal message:\n'+(r.message||''));
                             window.location = `mailto:${encodeURIComponent(r.email)}?subject=${subject}&body=${body}`;
                             // record reply note
-                            try{ await db.collection('supportRequests').doc(id).set({ lastRepliedAt: new Date().toISOString() }, { merge:true }); await loadSupportRequests(); }catch(e){ console.warn(e); }
+                            try{ await window.db.collection('supportRequests').doc(id).set({ lastRepliedAt: new Date().toISOString() }, { merge:true }); await loadSupportRequests(); }catch(e){ console.warn(e); }
                         }
 
                         async function markResolved(id){
                             if(!confirm('Mark this request as resolved?')) return;
-                            try{ await db.collection('supportRequests').doc(id).update({ status:'Resolved', resolvedAt: new Date().toISOString() }); await loadSupportRequests(); }catch(e){ console.error(e); alert('Failed to update.'); }
+                            try{ await window.db.collection('supportRequests').doc(id).update({ status:'Resolved', resolvedAt: new Date().toISOString() }); await loadSupportRequests(); }catch(e){ console.error(e); alert('Failed to update.'); }
                         }
 
                         async function deleteRequest(id){
                             if(!confirm('Delete this support request? This cannot be undone.')) return;
-                            try{ await db.collection('supportRequests').doc(id).delete(); await loadSupportRequests(); }catch(e){ console.error(e); alert('Failed to delete.'); }
+                            try{ await window.db.collection('supportRequests').doc(id).delete(); await loadSupportRequests(); }catch(e){ console.error(e); alert('Failed to delete.'); }
                         }
 
                         if(closeView) closeView.onclick = ()=>{ viewModal.classList.add('hidden'); viewModal.setAttribute('aria-hidden','true'); };
@@ -1164,18 +1197,26 @@
                         if(document.getElementById('clearSupportQueueBtn')) document.getElementById('clearSupportQueueBtn').onclick = async ()=>{
                             if(!confirm('Clear all pending support requests by marking them Resolved?')) return;
                             try{
-                                const batch = db.batch();
-                                requests.filter(r=>r.status==='Pending').forEach(r=>{ const ref = db.collection('supportRequests').doc(r.id); batch.update(ref,{ status:'Resolved', resolvedAt: new Date().toISOString() }); });
+                                const batch = window.db.batch();
+                                requests.filter(r=>r.status==='Pending').forEach(r=>{ const ref = window.db.collection('supportRequests').doc(r.id); batch.update(ref,{ status:'Resolved', resolvedAt: new Date().toISOString() }); });
                                 await batch.commit();
                                 await loadSupportRequests();
                             }catch(e){ console.error(e); alert('Failed to clear queue.'); }
                         };
 
                         // realtime badge subscription
-                        function subscribeSupportBadge(){ if(!window.db || typeof db.collection !== 'function') return; db.collection('supportRequests').where('status','==','Pending').onSnapshot(snap=>{ const n = snap.size; if(supportBadge){ if(n>0){ supportBadge.style.display='inline-block'; supportBadge.textContent = n; } else { supportBadge.style.display='none'; } } }); }
+                        function subscribeSupportRealtime(){
+                            const firestore = window.db;
+                            if(!firestore || typeof firestore.collection !== 'function') return;
+                            firestore.collection('supportRequests').onSnapshot(function () {
+                                loadSupportRequests();
+                            }, function (err) {
+                                console.warn('Support requests listener error:', err);
+                            });
+                        }
 
-                        // init load
-                        subscribeSupportBadge(); loadSupportRequests();
+                        window.refreshSupportRequests = loadSupportRequests;
+                        window.subscribeSupportRealtime = subscribeSupportRealtime;
                     })();
                 </script>
 
@@ -3932,7 +3973,7 @@
             </main>
 
                     <!-- CANCELED APPOINTMENTS MODAL -->
-                    <div id="canceledAppointmentsModal" class="modal hidden" aria-hidden="true" role="dialog" aria-labelledby="canceledAppointmentsTitle">
+                    <div id="canceledAppointmentsModal" class="modal hidden" aria-hidden="true" role="dialog" aria-labelledby="canceledAppointmentsTitle" style="z-index:11006;">
                         <div class="modal-content" style="max-width:980px;max-height:92vh;overflow:auto;">
                             <div class="modal-header">
                                 <h2 id="canceledAppointmentsTitle">Canceled Appointments</h2>
@@ -3985,14 +4026,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <script type="text/javascript">
-        (function(){
-            emailjs.init({
-                publicKey: "XHCRamreoEnHnyF68",
-            });
-        })();
-    </script>
     <script src="raygain-logo-data.js"></script>
     <script>
     // Firebase config
@@ -4007,6 +4040,7 @@
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
+    window.db = db;
     // Avoid Firestore WebChannel issues (often seen as /Write/channel errors) on some networks/browsers.
     try { db.settings({ experimentalForceLongPolling: true, useFetchStreams: false, merge: true }); } catch (e) {}
 
@@ -4046,8 +4080,6 @@
         window.location.replace('login.html');
     }
 
-    const EMAILJS_SERVICE_ID = 'service_8atajk9';
-    const EMAILJS_TEMPLATE_ID = 'template_yp68fop';
     const RAYGAIN_EMAIL_SENDER = 'RayGainPT@gmail.com';
     const CLINIC_CONTACT_NUMBER = '09972375959';
     const CLINIC_LOCATION = 'Butol Santiago Ilocos Sur Zone 3';
@@ -4424,11 +4456,6 @@
                 return;
             }
 
-            if (!window.emailjs || !EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID) {
-                showInfoModal('Bulk confirmation requires EmailJS to be configured first.', 'EmailJS Needed');
-                return;
-            }
-
             const confirmed = await showConfirmModal(`Send confirmation emails to ${pendingDocs.length} pending patient(s)?`, 'Confirm All Pending');
             if (!confirmed) return;
 
@@ -4442,13 +4469,15 @@
                 for (const doc of pendingDocs) {
                     try {
                         const inquiryData = doc.data() || {};
-                        await sendInquiryConfirmationEmail(doc.id, inquiryData);
+                        const bulkSendResult = await sendInquiryConfirmationEmail(doc.id, inquiryData);
                         await db.collection('inquiries').doc(doc.id).update({
                             confirmationStatus: 'sent',
                             confirmationEmailSentAt: new Date().toISOString(),
                             confirmationSender: RAYGAIN_EMAIL_SENDER,
                             confirmationRecipient: getInquiryRecipientEmail(inquiryData) || '',
-                            confirmationBookingId: await resolveInquiryBookingId(doc.id, inquiryData)
+                            confirmationBookingId: bulkSendResult.bookingId || await resolveInquiryBookingId(doc.id, inquiryData),
+                            confirmationMailDocId: bulkSendResult.mailDocId || '',
+                            confirmationDeliveryState: bulkSendResult.deliveryState || 'PENDING'
                         });
                         sentCount += 1;
                     } catch (sendError) {
@@ -7301,17 +7330,273 @@ const archiveSelectAllMap = {
         return String(inquiryData?.gmail || inquiryData?.email || '').trim();
     }
 
-    function formatInquiryEmailError(error) {
-        if (!error) return 'Unknown email delivery error.';
-
-        const parts = [];
-        if (error.message) parts.push(String(error.message));
-        if (error.text && error.text !== error.message) parts.push(String(error.text));
-        if (error.status) parts.push(`Status: ${error.status}`);
-        if (error.name && error.name !== 'Error') parts.push(`Type: ${error.name}`);
-
-        return parts.length ? parts.join(' | ') : String(error);
+    function getAppointmentRecipientEmail(appointmentData) {
+        const inquiry = appointmentData?.inquiryData || {};
+        return String(
+            appointmentData?.gmail ||
+            appointmentData?.email ||
+            inquiry.gmail ||
+            inquiry.email ||
+            ''
+        ).trim();
     }
+
+    function buildAppointmentPatientName(appointmentData) {
+        const inquiry = appointmentData?.inquiryData || {};
+        const fromInquiry = [
+            inquiry.firstName || '',
+            inquiry.middleName || '',
+            inquiry.suffix || '',
+            inquiry.lastName || ''
+        ].map(function (v) { return String(v || '').trim(); }).filter(Boolean).join(' ');
+        if (fromInquiry) return fromInquiry;
+        return String(appointmentData?.patientName || appointmentData?.name || '').trim() || 'Valued Patient';
+    }
+
+    function buildAppointmentCancellationMessage(appointmentData, reason) {
+        const fullName = buildAppointmentPatientName(appointmentData);
+        const serviceType = appointmentData?.serviceType || appointmentData?.sessionType || appointmentData?.appointmentSessionType || 'Clinic';
+        const dateLabel = appointmentData?.dateLabel || appointmentData?.date || appointmentData?.appointmentDate || 'N/A';
+        const timeLabel = appointmentData?.time || appointmentData?.appointmentTime || appointmentData?.timeRange || 'N/A';
+        const bookingId = appointmentData?.bookingId || appointmentData?.id || 'N/A';
+
+        const html = `
+            <p>Dear ${escapeHtml(fullName)},</p>
+            <p>Your appointment at RayGain Physiotherapy Clinic has been <strong>CANCELED</strong>.</p>
+            <p><strong>Appointment Details:</strong><br>
+            * Service Type: ${escapeHtml(serviceType)}<br>
+            * Date: ${escapeHtml(dateLabel)}<br>
+            * Time: ${escapeHtml(timeLabel)}<br>
+            * Booking ID: ${escapeHtml(bookingId)}</p>
+            <p><strong>Reason:</strong><br>${escapeHtml(reason || 'Not specified')}</p>
+            <p>If you would like to book again, please submit a new inquiry on our website.</p>
+            <p><strong>Contact:</strong><br>
+            ${escapeHtml(CLINIC_CONTACT_NUMBER)}<br>
+            ${escapeHtml(RAYGAIN_EMAIL_SENDER)}</p>
+        `;
+
+        const text = [
+            `Dear ${fullName},`,
+            '',
+            'Your appointment at RayGain Physiotherapy Clinic has been CANCELED.',
+            '',
+            'Appointment Details:',
+            `* Service Type: ${serviceType}`,
+            `* Date: ${dateLabel}`,
+            `* Time: ${timeLabel}`,
+            `* Booking ID: ${bookingId}`,
+            '',
+            'Reason:',
+            reason || 'Not specified',
+            '',
+            'If you would like to book again, please submit a new inquiry on our website.',
+            '',
+            'Contact:',
+            CLINIC_CONTACT_NUMBER,
+            RAYGAIN_EMAIL_SENDER
+        ].join('\n');
+
+        return { fullName, html, text };
+    }
+
+    async function queueAppointmentCancellationEmail(appointmentId, appointmentData, reason) {
+        const recipientEmail = getAppointmentRecipientEmail(appointmentData);
+        if (!recipientEmail) {
+            return { ok: false, skipped: true, reason: 'no-email' };
+        }
+
+        const message = buildAppointmentCancellationMessage(appointmentData, reason);
+        const subject = 'Appointment Canceled - RayGain Physiotherapy Clinic';
+        const mailRef = await db.collection('mail').add({
+            to: recipientEmail,
+            message: {
+                subject: subject,
+                text: message.text,
+                html: message.html
+            },
+            createdAt: new Date().toISOString(),
+            source: 'therapist-dashboard-cancel-appointment',
+            appointmentId: appointmentId,
+            cancellationReason: reason || ''
+        });
+
+        const deliveryStatus = await waitForMailDeliveryStatus(mailRef.id, 30000);
+        return {
+            ok: deliveryStatus.state === 'SUCCESS',
+            skipped: false,
+            recipientEmail: recipientEmail,
+            mailDocId: mailRef.id,
+            deliveryState: deliveryStatus.state,
+            deliveryError: deliveryStatus.error
+        };
+    }
+
+    window.queueAppointmentCancellationEmail = queueAppointmentCancellationEmail;
+
+    function getAppointmentScheduleSnapshot(appointmentData) {
+        const sessionType = appointmentData?.sessionType || appointmentData?.serviceType || appointmentData?.appointmentSessionType || 'Clinic';
+        const dateLabel = appointmentData?.dateLabel || appointmentData?.date || appointmentData?.appointmentDate || 'N/A';
+        const timeLabel = appointmentData?.timeRange ||
+            (appointmentData?.startTime && appointmentData?.endTime
+                ? `${appointmentData.startTime} - ${appointmentData.endTime}`
+                : (appointmentData?.time || appointmentData?.appointmentTime || 'N/A'));
+        return { sessionType, dateLabel, timeLabel };
+    }
+
+    function buildAppointmentRescheduleMessage(appointmentData, previousData, newData) {
+        const fullName = buildAppointmentPatientName(appointmentData);
+        const previous = getAppointmentScheduleSnapshot(previousData || {});
+        const updated = getAppointmentScheduleSnapshot({ ...appointmentData, ...newData });
+
+        const html = `
+            <p>Dear ${escapeHtml(fullName)},</p>
+            <p>Your appointment at RayGain Physiotherapy Clinic has been <strong>RESCHEDULED</strong>.</p>
+            <p><strong>Previous Schedule:</strong><br>
+            * Service Type: ${escapeHtml(previous.sessionType)}<br>
+            * Date: ${escapeHtml(previous.dateLabel)}<br>
+            * Time: ${escapeHtml(previous.timeLabel)}</p>
+            <p><strong>New Schedule:</strong><br>
+            * Service Type: ${escapeHtml(updated.sessionType)}<br>
+            * Date: ${escapeHtml(updated.dateLabel)}<br>
+            * Time: ${escapeHtml(updated.timeLabel)}</p>
+            <p><strong>Location:</strong><br>${escapeHtml(CLINIC_LOCATION)}</p>
+            <p><strong>Contact:</strong><br>
+            ${escapeHtml(CLINIC_CONTACT_NUMBER)}<br>
+            ${escapeHtml(RAYGAIN_EMAIL_SENDER)}</p>
+        `;
+
+        const text = [
+            `Dear ${fullName},`,
+            '',
+            'Your appointment at RayGain Physiotherapy Clinic has been RESCHEDULED.',
+            '',
+            'Previous Schedule:',
+            `* Service Type: ${previous.sessionType}`,
+            `* Date: ${previous.dateLabel}`,
+            `* Time: ${previous.timeLabel}`,
+            '',
+            'New Schedule:',
+            `* Service Type: ${updated.sessionType}`,
+            `* Date: ${updated.dateLabel}`,
+            `* Time: ${updated.timeLabel}`,
+            '',
+            'Location:',
+            CLINIC_LOCATION,
+            '',
+            'Contact:',
+            CLINIC_CONTACT_NUMBER,
+            RAYGAIN_EMAIL_SENDER
+        ].join('\n');
+
+        return { fullName, html, text };
+    }
+
+    function buildAppointmentDeletionMessage(appointmentData, reason) {
+        const fullName = buildAppointmentPatientName(appointmentData);
+        const schedule = getAppointmentScheduleSnapshot(appointmentData);
+
+        const html = `
+            <p>Dear ${escapeHtml(fullName)},</p>
+            <p>Your appointment at RayGain Physiotherapy Clinic has been <strong>DELETED</strong> by clinic staff.</p>
+            <p><strong>Appointment Details:</strong><br>
+            * Service Type: ${escapeHtml(schedule.sessionType)}<br>
+            * Date: ${escapeHtml(schedule.dateLabel)}<br>
+            * Time: ${escapeHtml(schedule.timeLabel)}</p>
+            <p><strong>Reason:</strong><br>${escapeHtml(reason || 'Not specified')}</p>
+            <p>If you would like to book again, please submit a new inquiry on our website.</p>
+            <p><strong>Contact:</strong><br>
+            ${escapeHtml(CLINIC_CONTACT_NUMBER)}<br>
+            ${escapeHtml(RAYGAIN_EMAIL_SENDER)}</p>
+        `;
+
+        const text = [
+            `Dear ${fullName},`,
+            '',
+            'Your appointment at RayGain Physiotherapy Clinic has been DELETED by clinic staff.',
+            '',
+            'Appointment Details:',
+            `* Service Type: ${schedule.sessionType}`,
+            `* Date: ${schedule.dateLabel}`,
+            `* Time: ${schedule.timeLabel}`,
+            '',
+            'Reason:',
+            reason || 'Not specified',
+            '',
+            'If you would like to book again, please submit a new inquiry on our website.',
+            '',
+            'Contact:',
+            CLINIC_CONTACT_NUMBER,
+            RAYGAIN_EMAIL_SENDER
+        ].join('\n');
+
+        return { fullName, html, text };
+    }
+
+    async function queueAppointmentRescheduleEmail(appointmentId, appointmentData, previousData, newData) {
+        const recipientEmail = getAppointmentRecipientEmail(appointmentData);
+        if (!recipientEmail) {
+            return { ok: false, skipped: true, reason: 'no-email' };
+        }
+
+        const message = buildAppointmentRescheduleMessage(appointmentData, previousData, newData);
+        const subject = 'Appointment Rescheduled - RayGain Physiotherapy Clinic';
+        const mailRef = await db.collection('mail').add({
+            to: recipientEmail,
+            message: {
+                subject: subject,
+                text: message.text,
+                html: message.html
+            },
+            createdAt: new Date().toISOString(),
+            source: 'therapist-dashboard-reschedule-appointment',
+            appointmentId: appointmentId
+        });
+
+        const deliveryStatus = await waitForMailDeliveryStatus(mailRef.id, 30000);
+        return {
+            ok: deliveryStatus.state === 'SUCCESS',
+            skipped: false,
+            recipientEmail: recipientEmail,
+            mailDocId: mailRef.id,
+            deliveryState: deliveryStatus.state,
+            deliveryError: deliveryStatus.error
+        };
+    }
+
+    async function queueAppointmentDeletionEmail(appointmentId, appointmentData, reason) {
+        const recipientEmail = getAppointmentRecipientEmail(appointmentData);
+        if (!recipientEmail) {
+            return { ok: false, skipped: true, reason: 'no-email' };
+        }
+
+        const message = buildAppointmentDeletionMessage(appointmentData, reason);
+        const subject = 'Appointment Deleted - RayGain Physiotherapy Clinic';
+        const mailRef = await db.collection('mail').add({
+            to: recipientEmail,
+            message: {
+                subject: subject,
+                text: message.text,
+                html: message.html
+            },
+            createdAt: new Date().toISOString(),
+            source: 'therapist-dashboard-delete-appointment',
+            appointmentId: appointmentId,
+            deletionReason: reason || ''
+        });
+
+        const deliveryStatus = await waitForMailDeliveryStatus(mailRef.id, 30000);
+        return {
+            ok: deliveryStatus.state === 'SUCCESS',
+            skipped: false,
+            recipientEmail: recipientEmail,
+            mailDocId: mailRef.id,
+            deliveryState: deliveryStatus.state,
+            deliveryError: deliveryStatus.error
+        };
+    }
+
+    window.queueAppointmentRescheduleEmail = queueAppointmentRescheduleEmail;
+    window.queueAppointmentDeletionEmail = queueAppointmentDeletionEmail;
 
     function buildInquiryConfirmationMessage(inquiryData, bookingId) {
         const fullName = buildInquiryFullName(inquiryData);
@@ -7360,6 +7645,28 @@ const archiveSelectAllMap = {
         return { fullName, bookingMeta, html, text };
     }
 
+    async function waitForMailDeliveryStatus(mailDocId, maxWaitMs) {
+        const waitBudget = Number.isFinite(maxWaitMs) ? maxWaitMs : 10000;
+        const startedAt = Date.now();
+        while (Date.now() - startedAt < waitBudget) {
+            const snap = await db.collection('mail').doc(mailDocId).get();
+            const delivery = snap.exists ? (snap.data() || {}).delivery : null;
+            const state = delivery && delivery.state ? String(delivery.state).toUpperCase() : '';
+            if (state === 'SUCCESS') {
+                return { state: 'SUCCESS', error: '', delivery: delivery };
+            }
+            if (state === 'ERROR') {
+                return {
+                    state: 'ERROR',
+                    error: delivery && delivery.error ? String(delivery.error) : 'Unknown SMTP delivery error.',
+                    delivery: delivery
+                };
+            }
+            await new Promise(function (resolve) { setTimeout(resolve, 1500); });
+        }
+        return { state: 'PENDING', error: '', delivery: null };
+    }
+
     async function sendInquiryConfirmationEmail(inquiryId, inquiryData) {
         const recipientEmail = getInquiryRecipientEmail(inquiryData);
         if (!recipientEmail) {
@@ -7369,50 +7676,35 @@ const archiveSelectAllMap = {
         const bookingId = await resolveInquiryBookingId(inquiryId, inquiryData);
         const message = buildInquiryConfirmationMessage(inquiryData, bookingId);
         const subject = 'Booking Confirmation - RayGain Physiotherapy Clinic';
-        const templateParams = {
-            to_email: recipientEmail,
-            email: recipientEmail,
-            user_email: recipientEmail,
-            recipient_email: recipientEmail,
-            gmail: recipientEmail,
-            to: recipientEmail,
-            recipient: recipientEmail,
-            send_to: recipientEmail,
-            to_name: message.fullName,
-            name: message.fullName,
-            from_name: RAYGAIN_EMAIL_SENDER,
-            reply_to: RAYGAIN_EMAIL_SENDER,
-            subject: subject,
-            patient_name: message.fullName,
-            service_type: message.bookingMeta.serviceType,
-            booking_date: message.bookingMeta.dateLabel,
-            booking_time: message.bookingMeta.timeLabel,
-            booking_id: bookingId || 'N/A',
-            clinic_location: CLINIC_LOCATION,
-            clinic_contact: CLINIC_CONTACT_NUMBER,
-            clinic_email: RAYGAIN_EMAIL_SENDER,
-            message_html: message.html,
-            message_text: message.text,
-            message: message.text
-        };
 
-        if (window.emailjs && EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE_ID) {
-            try {
-                const providerResult = await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams);
-                return {
-                    bookingId,
-                    deliveryMode: 'emailjs',
-                    providerStatus: providerResult && providerResult.status ? String(providerResult.status) : '',
-                    providerText: providerResult && providerResult.text ? String(providerResult.text) : ''
-                };
-            } catch (emailError) {
-                throw new Error(`EmailJS failed: ${formatInquiryEmailError(emailError)}`);
-            }
+        if (!db || typeof db.collection !== 'function') {
+            throw new Error('Email service is unavailable. Please refresh and try again.');
         }
 
-        const mailtoUrl = `mailto:${encodeURIComponent(recipientEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message.text)}`;
-        window.open(mailtoUrl, '_blank');
-        return { bookingId, deliveryMode: 'mailto' };
+        // Firebase Extension: Trigger Email listens to the `mail` collection by default.
+        const mailRef = await db.collection('mail').add({
+            to: recipientEmail,
+            message: {
+                subject: subject,
+                text: message.text,
+                html: message.html
+            },
+            createdAt: new Date().toISOString(),
+            source: 'therapist-dashboard-confirmation',
+            inquiryId: inquiryId,
+            bookingId: bookingId || null
+        });
+
+        const deliveryStatus = await waitForMailDeliveryStatus(mailRef.id, 30000);
+
+        return {
+            bookingId,
+            deliveryMode: 'firestore',
+            recipientEmail,
+            mailDocId: mailRef.id,
+            deliveryState: deliveryStatus.state,
+            deliveryError: deliveryStatus.error
+        };
     }
     const infoModal = document.getElementById('infoModal');
     const infoModalTitle = document.getElementById('infoModalTitle');
@@ -7470,6 +7762,9 @@ const archiveSelectAllMap = {
 
     function hideInfoModal() {
         if (!infoModal) return;
+        if (document.activeElement && infoModal.contains(document.activeElement)) {
+            document.activeElement.blur();
+        }
         infoModal.classList.add('hidden');
         infoModal.setAttribute('aria-hidden', 'true');
     }
@@ -7496,6 +7791,9 @@ const archiveSelectAllMap = {
 
     function closeConfirmModal(result) {
         if (!confirmModal) return;
+        if (document.activeElement && confirmModal.contains(document.activeElement)) {
+            document.activeElement.blur();
+        }
         confirmModal.classList.add('hidden');
         confirmModal.setAttribute('aria-hidden', 'true');
         if (confirmResolver) {
@@ -7567,16 +7865,38 @@ const archiveSelectAllMap = {
         return await showConfirmModal(`Please confirm again. Recover this ${label}?`, 'Confirm Recovery');
     }
 
-    // Load Pending Inquiries
-    async function loadPendingInquiries() {
-        try {
-            const snapshot = await db.collection('inquiries').get();
-            const inquiriesTableBody = document.getElementById('inquiriesTableBody');
-            inquiriesTableBody.innerHTML = '';
-            snapshot.forEach(doc => {
+    function isPendingInquiryRecord(inquiry) {
+        if (!inquiry || inquiry.isDeleted) return false;
+        if (inquiry.status === 'accepted') return false;
+        return true;
+    }
+
+    function isPendingBadgeInquiry(inquiry) {
+        return isPendingInquiryRecord(inquiry) && !hasConfirmationEmailSent(inquiry);
+    }
+
+    function updatePendingPatientsBadge(inquiriesSnapshot) {
+        let pendingPatients = 0;
+        inquiriesSnapshot.forEach(function (doc) {
+            if (isPendingBadgeInquiry(doc.data())) pendingPatients++;
+        });
+        const notificationBadge = document.getElementById('notificationBadge');
+        if (!notificationBadge) return;
+        if (pendingPatients > 0) {
+            notificationBadge.textContent = String(pendingPatients);
+            notificationBadge.style.display = 'inline-flex';
+        } else {
+            notificationBadge.style.display = 'none';
+        }
+    }
+
+    function renderPendingInquiriesTable(snapshot) {
+        const inquiriesTableBody = document.getElementById('inquiriesTableBody');
+        if (!inquiriesTableBody) return;
+        inquiriesTableBody.innerHTML = '';
+        snapshot.forEach(doc => {
                 const inquiry = doc.data();
-                // skip soft-deleted or already accepted inquiries
-                if (inquiry && (inquiry.isDeleted || inquiry.status === 'accepted')) return;
+                if (!isPendingInquiryRecord(inquiry)) return;
                 // Get emergency contact phone number from the emergency contact information
                 const emergencyContactPhone = inquiry.emergencyContactPhone || inquiry.emergencyContactNumber || '';
                 
@@ -7588,6 +7908,14 @@ const archiveSelectAllMap = {
                 
                 const row = document.createElement('tr');
                 const confirmationSent = !!(inquiry.confirmationEmailSentAt || inquiry.confirmationStatus === 'sent');
+                const smtpFailed = inquiry.confirmationDeliveryState === 'ERROR';
+                const emailBtnLabel = smtpFailed
+                    ? 'Retry Email'
+                    : (confirmationSent ? 'Email Sent' : 'Confirm Inquiry');
+                const emailBtnColor = smtpFailed
+                    ? '#c62828'
+                    : (confirmationSent ? '#90a4ae' : '#1976d2');
+                const emailBtnDisabled = confirmationSent && !smtpFailed;
                 row.innerHTML = `
                     <td>
                         <div style="display:flex;flex-direction:column;gap:6px;min-width:140px;">
@@ -7602,7 +7930,7 @@ const archiveSelectAllMap = {
                     <td>${getInquiryCaseCondition(inquiry)}</td>
                     <td>${emergencyContactPhone}</td>
                     <td style="display:flex;gap:8px;flex-wrap:wrap;">
-                        <button data-id="${doc.id}" class="confirmInquiryBtn" style="padding:8px 16px;background:${confirmationSent ? '#90a4ae' : '#1976d2'};color:white;border:none;border-radius:4px;cursor:${confirmationSent ? 'not-allowed' : 'pointer'};font-size:0.9rem;" ${confirmationSent ? 'disabled' : ''}>${confirmationSent ? 'Email Sent' : 'Confirm Inquiry'}</button>
+                        <button data-id="${doc.id}" class="confirmInquiryBtn" style="padding:8px 16px;background:${emailBtnColor};color:white;border:none;border-radius:4px;cursor:${emailBtnDisabled ? 'not-allowed' : 'pointer'};font-size:0.9rem;" ${emailBtnDisabled ? 'disabled' : ''}>${emailBtnLabel}</button>
                         <button data-id="${doc.id}" class="addPatientBtn" style="padding:8px 16px;background:#4CAF50;color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.9rem;">Add Patient</button>
                         <button onclick="deleteInquiry('${doc.id}')" style="padding:8px 16px;background:#f44336;color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.9rem;">Delete</button>
                     </td>
@@ -7632,7 +7960,8 @@ const archiveSelectAllMap = {
                         }
 
                         const inquiryData = inquiryDoc.data() || {};
-                        if (inquiryData.confirmationEmailSentAt || inquiryData.confirmationStatus === 'sent') {
+                        if ((inquiryData.confirmationEmailSentAt || inquiryData.confirmationStatus === 'sent')
+                            && inquiryData.confirmationDeliveryState !== 'ERROR') {
                             showInfoModal('Confirmation email has already been sent for this inquiry.');
                             return;
                         }
@@ -7653,20 +7982,31 @@ const archiveSelectAllMap = {
                         const sendResult = await sendInquiryConfirmationEmail(id, inquiryData);
                         const nowIso = new Date().toISOString();
                         await db.collection('inquiries').doc(id).update({
-                            confirmationStatus: sendResult.deliveryMode === 'emailjs' ? 'sent' : 'queued-mailto',
+                            confirmationStatus: 'sent',
                             confirmationEmailSentAt: nowIso,
                             confirmationSender: RAYGAIN_EMAIL_SENDER,
                             confirmationBookingId: sendResult.bookingId || id,
                             confirmationRecipient: recipientEmail,
                             confirmationProvider: sendResult.deliveryMode,
-                            confirmationProviderStatus: sendResult.providerStatus || '',
-                            confirmationProviderText: sendResult.providerText || ''
+                            confirmationMailDocId: sendResult.mailDocId || '',
+                            confirmationDeliveryState: sendResult.deliveryState || 'PENDING'
                         });
 
-                        if (sendResult.deliveryMode === 'emailjs') {
-                            showInfoModal(`Confirmation email sent to ${recipientEmail}.`);
+                        if (sendResult.deliveryState === 'SUCCESS') {
+                            showInfoModal(
+                                `Email delivered to ${recipientEmail}.\n\nFirestore mail ID: ${sendResult.mailDocId}`,
+                                'Email Delivered'
+                            );
+                        } else if (sendResult.deliveryState === 'ERROR') {
+                            showInfoModal(
+                                `Saved to Firestore but SMTP failed.\n\nRecipient: ${recipientEmail}\nMail ID: ${sendResult.mailDocId}\n\n${sendResult.deliveryError || 'Check Trigger Email SMTP password (Gmail App Password).'}`,
+                                'SMTP Delivery Failed'
+                            );
                         } else {
-                            showInfoModal('Mail app opened. Please click Send in Gmail to finish the confirmation email.');
+                            showInfoModal(
+                                `Saved to Firestore (mail ID: ${sendResult.mailDocId}). The extension is still processing, or delivery was not confirmed within 30 seconds.\n\nRecipient: ${recipientEmail}\n\nNext: Firestore → mail → open this document → check delivery.state\n• SUCCESS = email sent (check spam)\n• ERROR = read delivery.error (SMTP issue)\n• No delivery field yet = wait 1–2 min and refresh the document\n\nIf you just set the SMTP password, wait until the extension finishes saving, then use Retry Email.`,
+                                'Email Queued'
+                            );
                         }
 
                         await loadPendingInquiries();
@@ -7733,6 +8073,20 @@ const archiveSelectAllMap = {
             });
 
             filterPendingInquiriesTable();
+    }
+
+    window.isPendingInquiryRecord = isPendingInquiryRecord;
+    window.isPendingBadgeInquiry = isPendingBadgeInquiry;
+    window.renderPendingInquiriesTable = renderPendingInquiriesTable;
+    window.updatePendingPatientsBadge = updatePendingPatientsBadge;
+
+    // Load Pending Inquiries
+    async function loadPendingInquiries() {
+        try {
+            const snapshot = await db.collection('inquiries').get();
+            renderPendingInquiriesTable(snapshot);
+            updatePendingPatientsBadge(snapshot);
+            await updateNotificationArea(snapshot);
             await updateRayGainAnalytics();
         } catch (error) {
             console.error('Error loading inquiries:', error);
@@ -12281,6 +12635,10 @@ const archiveSelectAllMap = {
             await loadPatients();
         } catch (e) { console.warn('init: loadPatients failed', e); }
         try { await loadPendingInquiries(); } catch (e) { console.warn('init: loadPendingInquiries failed', e); }
+        try {
+            if (typeof window.subscribeSupportRealtime === 'function') window.subscribeSupportRealtime();
+            if (typeof window.refreshSupportRequests === 'function') await window.refreshSupportRequests();
+        } catch (e) { console.warn('init: support requests failed', e); }
         try { await updateRayGainAnalytics(); } catch (e) { console.warn('init: updateRayGainAnalytics failed', e); }
         try { subscribeRecoveryStatusChart(); } catch (e) { console.warn('init: subscribeRecoveryStatusChart failed', e); }
         try { await loadArchive(); } catch (e) { console.warn('init: loadArchive failed', e); }
@@ -12856,19 +13214,27 @@ const archiveSelectAllMap = {
     try {
         db.collection('appointments').onSnapshot(async function(){
             try { renderCalendar(currentMonth); } catch(e) { /* renderCalendar may not be defined yet during early load */ }
-            try { const inquiriesSnapshot = await db.collection('inquiries').get(); await updateNotificationArea(inquiriesSnapshot); } catch(e) { /* ignore */ }
         });
     } catch (e) { console.warn('Realtime appointment listener not available', e); }
 
-    // Auto-refresh notification area every 30 seconds
-    setInterval(async () => {
-        try {
-            const inquiriesSnapshot = await db.collection('inquiries').get();
-            await updateNotificationArea(inquiriesSnapshot);
-        } catch (error) {
-            console.warn('Error auto-refreshing notifications:', error);
-        }
-    }, 30000); // 30 seconds
+    // Realtime pending patients: table + sidebar badge update immediately when inquiries change
+    try {
+        db.collection('inquiries').onSnapshot(function (snapshot) {
+            try {
+                renderPendingInquiriesTable(snapshot);
+                updatePendingPatientsBadge(snapshot);
+            } catch (e) {
+                console.warn('Realtime pending inquiries render failed:', e);
+            }
+            updateNotificationArea(snapshot).catch(function (err) {
+                console.warn('Realtime notification update failed:', err);
+            });
+        }, function (err) {
+            console.warn('Inquiries listener error:', err);
+        });
+    } catch (e) {
+        console.warn('Realtime inquiries listener not available', e);
+    }
     
     </script>
 
@@ -12888,6 +13254,7 @@ const archiveSelectAllMap = {
     const dateInput = document.getElementById('date');
     const floatingCard = document.getElementById('floatingCard');
     const fcClose = document.getElementById('fcClose');
+    const fcReschedule = document.getElementById('fcReschedule');
     const fcDelete = document.getElementById('fcDelete');
     const fcCancel = document.getElementById('fcCancel');
     const fcAvatar = document.getElementById('fcAvatar');
@@ -12898,6 +13265,11 @@ const archiveSelectAllMap = {
     const cancelAppointmentReasonInput = document.getElementById('cancelAppointmentReason');
     const closeCancelAppointmentReasonModal = document.getElementById('closeCancelAppointmentReasonModal');
     const cancelAppointmentReasonBackBtn = document.getElementById('cancelAppointmentReasonBackBtn');
+    const deleteAppointmentReasonModal = document.getElementById('deleteAppointmentReasonModal');
+    const deleteAppointmentReasonForm = document.getElementById('deleteAppointmentReasonForm');
+    const deleteAppointmentReasonInput = document.getElementById('deleteAppointmentReason');
+    const closeDeleteAppointmentReasonModal = document.getElementById('closeDeleteAppointmentReasonModal');
+    const deleteAppointmentReasonBackBtn = document.getElementById('deleteAppointmentReasonBackBtn');
     const manageAppointmentsModal = document.getElementById('manageAppointmentsModal');
     const openManageAppointmentsBtn = document.getElementById('openManageAppointmentsBtn');
     const closeManageAppointmentsModal = document.getElementById('closeManageAppointmentsModal');
@@ -12920,8 +13292,10 @@ const archiveSelectAllMap = {
     let currentMonth = new Date();
     let schedules = [];
     let activeScheduleId = null;
+    let activeScheduleData = null;
     let rescheduleAppointmentId = null;
     let activeCancelAppointmentId = null;
+    let activeDeleteAppointmentId = null;
     let manageRuleViewMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     let manageCalendarSchedulesByDate = new Map();
     const DEFAULT_BOOKABLE_WEEKDAYS = [2, 4, 6];
@@ -13319,12 +13693,18 @@ const archiveSelectAllMap = {
             rescheduledAt: new Date().toISOString()
         });
     }
-    async function deleteSchedule(id) {
-        const shouldDelete = window.confirm('Are you sure you want to delete this appointment?');
-        if (!shouldDelete) return;
-        // soft-delete appointment
-        await db.collection("appointments").doc(id).update({ isDeleted: true, deletedAt: new Date().toISOString() });
-        try { await loadArchive(); } catch (e) { /* ignore */ }
+    function formatEmailDeliveryNotice(emailResult, actionLabel) {
+        if (!emailResult) return '';
+        if (emailResult.skipped) {
+            return `\n\nNo patient Gmail was found on this appointment, so no ${actionLabel} email was sent.`;
+        }
+        if (emailResult.deliveryState === 'SUCCESS') {
+            return `\n\n${actionLabel} email sent to ${emailResult.recipientEmail}.`;
+        }
+        if (emailResult.deliveryState === 'ERROR') {
+            return `\n\nAppointment updated, but email failed: ${emailResult.deliveryError || 'SMTP error'}. Check Firestore mail → ${emailResult.mailDocId}.`;
+        }
+        return `\n\n${actionLabel} email queued for ${emailResult.recipientEmail}. Check Firestore mail → ${emailResult.mailDocId}.`;
     }
     function to24HourString(raw) {
         if (!raw || typeof raw !== 'string') return '';
@@ -13614,9 +13994,9 @@ const archiveSelectAllMap = {
     }
     prevBtn.onclick = () => { currentMonth.setMonth(currentMonth.getMonth()-1); renderCalendar(currentMonth); };
     nextBtn.onclick = () => { currentMonth.setMonth(currentMonth.getMonth()+1); renderCalendar(currentMonth); };
-    addBtn.onclick = () => { modalEl.classList.remove('hidden'); formEl.reset(); dateInput.value = ''; };
+    addBtn.onclick = () => { showScheduleModal(); formEl.reset(); dateInput.value = ''; };
     closeModalBtn.onclick = () => {
-        modalEl.classList.add('hidden');
+        hideScheduleModal();
         resetScheduleModalState();
     };
     // Populate patient select when opening modal
@@ -13631,7 +14011,7 @@ const archiveSelectAllMap = {
                 const p = entry.patient;
                 const fullName = [p.firstName,p.middleName,p.lastName].filter(Boolean).join(' ').trim();
                 const opt = document.createElement('option');
-                opt.value = p.patientId || '';
+                opt.value = (p.patientId && String(p.patientId).trim()) || entry.doc.id;
                 opt.textContent = fullName || (p.patientId || '');
                 opt.title = `ID: ${p.patientId || ''}`;
                 opt.dataset.docId = entry.doc.id;
@@ -13639,6 +14019,7 @@ const archiveSelectAllMap = {
                 opt.dataset.firstName = p.firstName || '';
                 opt.dataset.middleName = p.middleName || '';
                 opt.dataset.lastName = p.lastName || '';
+                opt.dataset.contact = String(p.contact || p.email || p.gmail || '').trim().toLowerCase();
                 sel.appendChild(opt);
             });
         } catch(err){ console.warn('populatePatientSelect error', err); }
@@ -13655,48 +14036,143 @@ const archiveSelectAllMap = {
         if (scheduleSubmitBtn) scheduleSubmitBtn.textContent = 'Add';
     }
 
+    function normalizePatientNameForMatch(value) {
+        return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    }
+
+    function getAppointmentPatientFields(appointment) {
+        if (!appointment) return { patientName: '', patientId: '', patientDocId: '' };
+        const inquiry = appointment.inquiryData || {};
+        const fromInquiryName = [inquiry.firstName, inquiry.middleName, inquiry.lastName]
+            .filter(Boolean)
+            .join(' ')
+            .trim();
+        return {
+            patientName: String(
+                appointment.patientName ||
+                appointment.name ||
+                fromInquiryName ||
+                resolveAppointmentPatientName(appointment) ||
+                ''
+            ).trim(),
+            patientId: String(
+                appointment.patientId ||
+                inquiry.previousPatientId ||
+                inquiry.patientId ||
+                ''
+            ).trim(),
+            patientDocId: String(appointment.patientDocId || inquiry.patientDocId || '').trim()
+        };
+    }
+
     function selectMatchingPatientOption(selectEl, appointment) {
-        if (!selectEl || !appointment) return;
-        const options = Array.from(selectEl.options || []);
-        const byDocId = options.find(opt => appointment.patientDocId && opt.dataset.docId === appointment.patientDocId);
-        const byPatientId = options.find(opt => appointment.patientId && opt.value === appointment.patientId);
-        const byName = options.find(opt => appointment.patientName && (opt.dataset.name || opt.textContent || '').trim() === appointment.patientName);
-        const match = byDocId || byPatientId || byName;
+        if (!selectEl || !appointment) return false;
+        const fields = getAppointmentPatientFields(appointment);
+        const targetName = normalizePatientNameForMatch(fields.patientName);
+        const targetPatientId = normalizePatientNameForMatch(fields.patientId);
+        const options = Array.from(selectEl.options || []).filter(opt => opt.value);
+
+        const byDocId = options.find(opt => fields.patientDocId && opt.dataset.docId === fields.patientDocId);
+        const byPatientId = options.find(opt => {
+            if (!fields.patientId) return false;
+            const optId = normalizePatientNameForMatch(opt.value);
+            return optId === targetPatientId;
+        });
+        const byName = options.find(opt => {
+            if (!targetName) return false;
+            const optName = normalizePatientNameForMatch(opt.dataset.name || opt.textContent);
+            return optName === targetName;
+        });
+        const byNameLoose = !byName && targetName
+            ? options.find(opt => {
+                const optName = normalizePatientNameForMatch(opt.dataset.name || opt.textContent);
+                return optName && (optName.includes(targetName) || targetName.includes(optName));
+            })
+            : null;
+
+        const inquiry = appointment.inquiryData || {};
+        const inquiryEmail = String(inquiry.gmail || inquiry.email || appointment.email || '').trim().toLowerCase();
+        const byEmail = inquiryEmail
+            ? options.find(opt => opt.dataset.contact && opt.dataset.contact === inquiryEmail)
+            : null;
+
+        const match = byDocId || byPatientId || byName || byNameLoose || byEmail;
         if (match) {
             selectEl.value = match.value;
+            return true;
         }
+        return false;
+    }
+
+    function ensureAppointmentPatientOption(selectEl, appointment) {
+        if (!selectEl || !appointment) return;
+        if (selectMatchingPatientOption(selectEl, appointment)) return;
+
+        const fields = getAppointmentPatientFields(appointment);
+        const displayName = fields.patientName || resolveAppointmentPatientName(appointment) || 'Selected Patient';
+        const fallbackValue = fields.patientId || fields.patientDocId || `appt-${appointment.id}`;
+
+        const opt = document.createElement('option');
+        opt.value = fallbackValue;
+        opt.textContent = displayName;
+        opt.dataset.name = displayName;
+        opt.dataset.docId = fields.patientDocId || '';
+        selectEl.appendChild(opt);
+        selectEl.value = opt.value;
+    }
+
+    function showScheduleModal() {
+        if (!modalEl) return;
+        if (modalEl.parentElement !== document.body) {
+            document.body.appendChild(modalEl);
+        }
+        if (typeof showSection === 'function') {
+            showSection('clinicCalendarSection');
+        }
+        const canceledModal = document.getElementById('canceledAppointmentsModal');
+        if (canceledModal) {
+            canceledModal.classList.add('hidden');
+            canceledModal.setAttribute('aria-hidden', 'true');
+        }
+        modalEl.classList.remove('hidden');
+        modalEl.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function hideScheduleModal() {
+        if (!modalEl) return;
+        modalEl.classList.add('hidden');
+        modalEl.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
     }
 
     async function openScheduleModalForReschedule(appointment) {
         if (!appointment || !appointment.id) return;
-        if (typeof showSection === 'function') {
-            showSection('clinicCalendarSection');
-        }
         rescheduleAppointmentId = appointment.id;
         if (formEl) formEl.dataset.rescheduleId = appointment.id;
-        if (modalTitleEl) modalTitleEl.textContent = 'Add Schedule';
-        if (scheduleSubmitBtn) scheduleSubmitBtn.textContent = 'Add';
+        if (modalTitleEl) modalTitleEl.textContent = 'Reschedule Appointment';
+        if (scheduleSubmitBtn) scheduleSubmitBtn.textContent = 'Save Reschedule';
 
-        // Hide canceled list immediately so the schedule modal is visible right away.
-        if (canceledAppointmentsModal) {
-            canceledAppointmentsModal.classList.add('hidden');
-            canceledAppointmentsModal.setAttribute('aria-hidden', 'true');
-        }
-
-        modalEl.classList.remove('hidden');
+        showScheduleModal();
         formEl.reset();
-        dateInput.value = '';
         dateInput.style.backgroundColor = '';
         dateInput.style.borderColor = '#ddd';
         dateError.style.display = 'none';
 
         await populatePatientSelect();
         const patientSelect = document.getElementById('patientSelect');
-        selectMatchingPatientOption(patientSelect, appointment);
+        ensureAppointmentPatientOption(patientSelect, appointment);
 
         document.getElementById('description').value = appointment.description || '';
         document.getElementById('scheduleStartTime').value = to24HourString(appointment.startTime || '') || '';
         document.getElementById('scheduleEndTime').value = to24HourString(appointment.endTime || '') || '';
+
+        const appointmentDateRaw = appointment.date || appointment.appointmentDate || '';
+        if (appointmentDateRaw) {
+            dateInput.value = String(appointmentDateRaw).split('T')[0];
+        } else {
+            dateInput.value = '';
+        }
 
         const targetSessionType = appointment.sessionType === 'Clinic' ? 'Clinic' : 'Home';
         const radioToCheck = document.querySelector(`input[name="sessionType"][value="${targetSessionType}"]`);
@@ -13747,7 +14223,7 @@ const archiveSelectAllMap = {
     // Add Schedule button click handler
     addBtn.onclick = () => { 
         resetScheduleModalState();
-        modalEl.classList.remove('hidden'); 
+        showScheduleModal();
         formEl.reset(); 
         dateInput.value = ''; 
         dateInput.style.backgroundColor = '';
@@ -13756,8 +14232,19 @@ const archiveSelectAllMap = {
         populatePatientSelect(); 
     };
 
-    if (openManageAppointmentsBtn && manageAppointmentsModal) {
-        openManageAppointmentsBtn.onclick = async function () {
+    async function openManageCalendarModal() {
+        if (!manageAppointmentsModal) return;
+        if (manageAppointmentsModal.parentElement !== document.body) {
+            document.body.appendChild(manageAppointmentsModal);
+        }
+        if (typeof showSection === 'function') {
+            showSection('clinicCalendarSection');
+        }
+        manageAppointmentsModal.classList.remove('hidden');
+        manageAppointmentsModal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+
+        try {
             await loadBookingAvailabilitySettings();
             await loadManageCalendarSchedules();
             applyManageSettingsToUi();
@@ -13766,24 +14253,34 @@ const archiveSelectAllMap = {
             } else {
                 loadManageDateRulesToUi();
             }
-            manageAppointmentsModal.classList.remove('hidden');
-            manageAppointmentsModal.setAttribute('aria-hidden', 'false');
+        } catch (error) {
+            console.error('Manage calendar modal init failed:', error);
+            alert('Calendar settings could not fully load. The form is open — try Save Availability again or refresh the page.');
+        }
+    }
+
+    function closeManageCalendarModal() {
+        if (!manageAppointmentsModal) return;
+        manageAppointmentsModal.classList.add('hidden');
+        manageAppointmentsModal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+    }
+
+    window.openManageCalendarModal = openManageCalendarModal;
+
+    if (openManageAppointmentsBtn && manageAppointmentsModal) {
+        openManageAppointmentsBtn.onclick = function () {
+            openManageCalendarModal();
         };
     }
 
     if (closeManageAppointmentsModal && manageAppointmentsModal) {
-        closeManageAppointmentsModal.onclick = function () {
-            manageAppointmentsModal.classList.add('hidden');
-            manageAppointmentsModal.setAttribute('aria-hidden', 'true');
-        };
+        closeManageAppointmentsModal.onclick = closeManageCalendarModal;
     }
 
     if (manageAppointmentsModal) {
         manageAppointmentsModal.onclick = function (e) {
-            if (e.target === manageAppointmentsModal) {
-                manageAppointmentsModal.classList.add('hidden');
-                manageAppointmentsModal.setAttribute('aria-hidden', 'true');
-            }
+            if (e.target === manageAppointmentsModal) closeManageCalendarModal();
         };
     }
 
@@ -13850,15 +14347,32 @@ const archiveSelectAllMap = {
 
         try {
             const targetRescheduleId = (formEl && formEl.dataset && formEl.dataset.rescheduleId) || rescheduleAppointmentId || '';
+            let emailNotice = '';
             if (targetRescheduleId) {
+                const priorSnap = await db.collection('appointments').doc(targetRescheduleId).get();
+                const priorData = priorSnap.exists ? (priorSnap.data() || {}) : {};
                 data.updatedAt = new Date().toISOString();
                 await rescheduleAppointment(targetRescheduleId, data);
+                if (typeof window.queueAppointmentRescheduleEmail === 'function') {
+                    try {
+                        const emailResult = await window.queueAppointmentRescheduleEmail(
+                            targetRescheduleId,
+                            priorData,
+                            priorData,
+                            data
+                        );
+                        emailNotice = formatEmailDeliveryNotice(emailResult, 'Reschedule');
+                    } catch (emailError) {
+                        console.error('Reschedule email failed:', emailError);
+                        emailNotice = '\n\nAppointment rescheduled, but the notification email could not be queued.';
+                    }
+                }
             } else {
                 data.createdAt = new Date().toISOString();
                 await saveSchedule(data);
             }
 
-            modalEl.classList.add('hidden');
+            hideScheduleModal();
             resetScheduleModalState();
             if (typeof showSection === 'function') {
                 showSection('clinicCalendarSection');
@@ -13869,6 +14383,9 @@ const archiveSelectAllMap = {
             await updateNotificationArea(inquiriesSnapshot);
             if (typeof loadArchive === 'function') {
                 try { await loadArchive(); } catch (e) { console.warn('Archive refresh failed:', e); }
+            }
+            if (targetRescheduleId) {
+                alert(`Appointment rescheduled.${emailNotice}`);
             }
         } catch (error) {
             console.error('Error saving appointment schedule:', error);
@@ -13909,15 +14426,48 @@ const archiveSelectAllMap = {
         if (fcAvatar) fcAvatar.textContent = patientName.charAt(0).toUpperCase();
 
         activeScheduleId = sch.id;
+        activeScheduleData = sch;
         requestAnimationFrame(() => positionFloatingCard(anchorEl));
     }
-    fcClose.onclick = () => { floatingCard.classList.add('hidden'); activeScheduleId = null; };
-    fcDelete.onclick = async () => {
-        if (!activeScheduleId) return;
-        await deleteSchedule(activeScheduleId);
+    fcClose.onclick = () => {
         floatingCard.classList.add('hidden');
-        renderCalendar(currentMonth);
+        activeScheduleId = null;
+        activeScheduleData = null;
     };
+    if (fcReschedule) {
+        fcReschedule.onclick = async () => {
+            if (!activeScheduleId) return;
+            try {
+                floatingCard.classList.add('hidden');
+                let appointment = (activeScheduleData && activeScheduleData.id === activeScheduleId)
+                    ? { ...activeScheduleData }
+                    : null;
+                if (!appointment) {
+                    const appointmentSnap = await db.collection('appointments').doc(activeScheduleId).get();
+                    if (!appointmentSnap.exists) {
+                        alert('Appointment not found. Please refresh and try again.');
+                        return;
+                    }
+                    appointment = { id: appointmentSnap.id, ...appointmentSnap.data() };
+                }
+                await openScheduleModalForReschedule(appointment);
+            } catch (rescheduleError) {
+                console.error('Failed to open reschedule form:', rescheduleError);
+                alert('Unable to open reschedule form. Please try again.');
+            }
+        };
+    }
+    if (fcDelete) {
+        fcDelete.onclick = () => {
+            if (!activeScheduleId) return;
+            activeDeleteAppointmentId = activeScheduleId;
+            if (deleteAppointmentReasonInput) deleteAppointmentReasonInput.value = '';
+            if (deleteAppointmentReasonModal) {
+                deleteAppointmentReasonModal.classList.remove('hidden');
+                deleteAppointmentReasonModal.setAttribute('aria-hidden', 'false');
+            }
+        };
+    }
     if (fcCancel) {
         fcCancel.onclick = () => {
             if (!activeScheduleId) return;
@@ -13926,6 +14476,82 @@ const archiveSelectAllMap = {
             if (cancelAppointmentReasonModal) {
                 cancelAppointmentReasonModal.classList.remove('hidden');
                 cancelAppointmentReasonModal.setAttribute('aria-hidden', 'false');
+            }
+        };
+    }
+    const closeDeleteAppointmentReason = () => {
+        activeDeleteAppointmentId = null;
+        if (deleteAppointmentReasonModal) {
+            deleteAppointmentReasonModal.classList.add('hidden');
+            deleteAppointmentReasonModal.setAttribute('aria-hidden', 'true');
+        }
+    };
+    if (closeDeleteAppointmentReasonModal) closeDeleteAppointmentReasonModal.onclick = closeDeleteAppointmentReason;
+    if (deleteAppointmentReasonBackBtn) deleteAppointmentReasonBackBtn.onclick = closeDeleteAppointmentReason;
+    if (deleteAppointmentReasonModal) {
+        deleteAppointmentReasonModal.onclick = (e) => {
+            if (e.target === deleteAppointmentReasonModal) closeDeleteAppointmentReason();
+        };
+    }
+    if (deleteAppointmentReasonForm) {
+        deleteAppointmentReasonForm.onsubmit = async (e) => {
+            e.preventDefault();
+            if (!activeDeleteAppointmentId) return;
+            const reason = (deleteAppointmentReasonInput?.value || '').trim();
+            if (!reason) {
+                alert('Please enter a reason for deletion.');
+                return;
+            }
+
+            const submitBtn = deleteAppointmentReasonForm.querySelector('button[type="submit"]');
+            const originalSubmitText = submitBtn ? submitBtn.textContent : '';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Deleting...';
+            }
+
+            try {
+                const appointmentRef = db.collection('appointments').doc(activeDeleteAppointmentId);
+                const appointmentSnap = await appointmentRef.get();
+                const appointmentData = appointmentSnap.exists ? (appointmentSnap.data() || {}) : {};
+
+                await appointmentRef.update({
+                    isDeleted: true,
+                    deletedAt: new Date().toISOString(),
+                    deletionReason: reason,
+                    deletedBy: 'staff'
+                });
+
+                let emailNotice = '';
+                if (typeof window.queueAppointmentDeletionEmail === 'function') {
+                    try {
+                        const emailResult = await window.queueAppointmentDeletionEmail(
+                            activeDeleteAppointmentId,
+                            appointmentData,
+                            reason
+                        );
+                        emailNotice = formatEmailDeliveryNotice(emailResult, 'Deletion');
+                    } catch (emailError) {
+                        console.error('Deletion email failed:', emailError);
+                        emailNotice = '\n\nAppointment deleted, but the notification email could not be queued.';
+                    }
+                }
+
+                closeDeleteAppointmentReason();
+                floatingCard.classList.add('hidden');
+                activeScheduleId = null;
+                activeScheduleData = null;
+                renderCalendar(currentMonth);
+                try { await loadArchive(); } catch (archiveError) { /* ignore */ }
+                alert(`Appointment deleted.${emailNotice}`);
+            } catch (deleteError) {
+                console.error('Failed to delete appointment:', deleteError);
+                alert('Failed to delete appointment. Please try again.');
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalSubmitText;
+                }
             }
         };
     }
@@ -13952,17 +14578,66 @@ const archiveSelectAllMap = {
                 alert('Please enter a reason for cancellation.');
                 return;
             }
-            await db.collection('appointments').doc(activeCancelAppointmentId).update({
-                isDeleted: true,
-                deletedAt: new Date().toISOString(),
-                cancellationReason: reason
-            });
-            closeCancelAppointmentReason();
-            floatingCard.classList.add('hidden');
-            renderCalendar(currentMonth);
-            try { await loadArchive(); } catch (e) { /* ignore */ }
-            if (canceledAppointmentsModal && !canceledAppointmentsModal.classList.contains('hidden')) {
-                renderCanceledAppointmentsModal();
+
+            const submitBtn = cancelAppointmentReasonForm.querySelector('button[type="submit"]');
+            const originalSubmitText = submitBtn ? submitBtn.textContent : '';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Canceling...';
+            }
+
+            try {
+                const appointmentRef = db.collection('appointments').doc(activeCancelAppointmentId);
+                const appointmentSnap = await appointmentRef.get();
+                const appointmentData = appointmentSnap.exists ? (appointmentSnap.data() || {}) : {};
+
+                await appointmentRef.update({
+                    isDeleted: true,
+                    deletedAt: new Date().toISOString(),
+                    cancellationReason: reason,
+                    canceledAt: new Date().toISOString()
+                });
+
+                let emailNotice = '';
+                if (typeof window.queueAppointmentCancellationEmail === 'function') {
+                    try {
+                        const emailResult = await window.queueAppointmentCancellationEmail(
+                            activeCancelAppointmentId,
+                            appointmentData,
+                            reason
+                        );
+                        if (emailResult.skipped) {
+                            emailNotice = '\n\nNo patient Gmail was found on this appointment, so no cancellation email was sent.';
+                        } else if (emailResult.deliveryState === 'SUCCESS') {
+                            emailNotice = `\n\nCancellation email sent to ${emailResult.recipientEmail}.`;
+                        } else if (emailResult.deliveryState === 'ERROR') {
+                            emailNotice = `\n\nAppointment canceled, but email failed: ${emailResult.deliveryError || 'SMTP error'}. Check Firestore mail → ${emailResult.mailDocId}.`;
+                        } else {
+                            emailNotice = `\n\nCancellation email queued for ${emailResult.recipientEmail}. Check Firestore mail → ${emailResult.mailDocId}.`;
+                        }
+                    } catch (emailError) {
+                        console.error('Cancellation email failed:', emailError);
+                        emailNotice = '\n\nAppointment canceled, but the cancellation email could not be queued.';
+                    }
+                }
+
+                closeCancelAppointmentReason();
+                floatingCard.classList.add('hidden');
+                renderCalendar(currentMonth);
+                try { await loadArchive(); } catch (archiveError) { /* ignore */ }
+                const canceledModalEl = document.getElementById('canceledAppointmentsModal');
+                if (canceledModalEl && !canceledModalEl.classList.contains('hidden')) {
+                    renderCanceledAppointmentsModal();
+                }
+                alert(`Appointment canceled.${emailNotice}`);
+            } catch (cancelError) {
+                console.error('Failed to cancel appointment:', cancelError);
+                alert('Failed to cancel appointment. Please try again.');
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalSubmitText;
+                }
             }
         };
     }
@@ -13971,6 +14646,24 @@ const archiveSelectAllMap = {
 
 
 // Update Notification Area with pending inquiries and upcoming appointments
+function isPendingBadgeInquiryData(data) {
+    if (typeof window.isPendingBadgeInquiry === 'function') {
+        return window.isPendingBadgeInquiry(data);
+    }
+    if (!data || data.isDeleted) return false;
+    if (data.status === 'accepted') return false;
+    return !(data.confirmationEmailSentAt || data.confirmationStatus === 'sent');
+}
+
+function isPendingInquiryRecordData(data) {
+    if (typeof window.isPendingInquiryRecord === 'function') {
+        return window.isPendingInquiryRecord(data);
+    }
+    if (!data || data.isDeleted) return false;
+    if (data.status === 'accepted') return false;
+    return true;
+}
+
 async function updateNotificationArea(inquiriesSnapshot) {
     try {
         // Count pending inquiries
@@ -13981,10 +14674,10 @@ async function updateNotificationArea(inquiriesSnapshot) {
         inquiriesSnapshot.forEach(doc => {
             const data = doc.data();
             if (data && data.isDeleted) return;
-            if (data.status === 'pending' || !data.status) {
+            if (isPendingBadgeInquiryData(data)) {
                 pendingCount++;
             }
-            if (data.status !== 'accepted' && (data.confirmationEmailSentAt || data.confirmationStatus === 'sent' || data.confirmationStatus === 'queued-mailto')) {
+            if (data.status !== 'accepted' && (data.confirmationEmailSentAt || data.confirmationStatus === 'sent')) {
                 bookingRequestCount++;
             }
             inquiries.push({ id: doc.id, ...data });
@@ -13997,7 +14690,7 @@ async function updateNotificationArea(inquiriesSnapshot) {
 
         const pendingDetailsEl = document.getElementById('statusPendingDetails');
         if (pendingDetailsEl) {
-            const pendingInquiries = inquiries.filter(inq => inq.status === 'pending' || !inq.status);
+            const pendingInquiries = inquiries.filter(inq => isPendingInquiryRecordData(inq));
             pendingDetailsEl.innerHTML = '';
             if (pendingInquiries.length === 0) {
                 pendingDetailsEl.innerHTML = '<div class="status-empty">No patients yet</div>';
@@ -14108,7 +14801,8 @@ async function updateNotificationArea(inquiriesSnapshot) {
             }
         }
 
-        if (canceledAppointmentsModal && !canceledAppointmentsModal.classList.contains('hidden')) {
+        const canceledModalEl = document.getElementById('canceledAppointmentsModal');
+        if (canceledModalEl && !canceledModalEl.classList.contains('hidden')) {
             renderCanceledAppointmentsModal();
         }
     } catch (error) {
@@ -14380,26 +15074,14 @@ async function updateRayGainAnalytics() {
     const inquiriesSnapshot = await db.collection('inquiries').get();
     window._inquiriesCache = inquiriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
         .filter(row => !row.isDeleted);
-    let pendingPatients = 0;
     let deletedInquiries = 0;
     inquiriesSnapshot.forEach(doc => {
         const data = doc.data() || {};
         if (data.isDeleted) {
             deletedInquiries++;
-            return;
-        }
-        if (data.status === 'pending' || !data.status) {
-            pendingPatients++;
         }
     });
-    // Update Pending Patients badge
-    const notificationBadge = document.getElementById('notificationBadge');
-    if (pendingPatients > 0) {
-        notificationBadge.textContent = pendingPatients;
-        notificationBadge.style.display = 'inline-flex';
-    } else {
-        notificationBadge.style.display = 'none';
-    }
+    updatePendingPatientsBadge(inquiriesSnapshot);
 
     // Archive badge count (deleted inquiries + deleted patients + deleted sessions + archived canceled appointments)
     const deletedPatientsSnapshot = await db.collection('patients').where('isDeleted','==', true).get();

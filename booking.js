@@ -19,8 +19,6 @@
         try { db.settings({ experimentalForceLongPolling: true, useFetchStreams: false, merge: true }); } catch (e) {}
     }
 
-    const EMAILJS_SERVICE_ID = 'service_8atajk9';
-    const EMAILJS_TEMPLATE_ID = 'template_yp68fop';
     const RAYGAIN_EMAIL_SENDER = 'RayGainPT@gmail.com';
     const CLINIC_CONTACT_NUMBER = '09972375959';
     const CLINIC_LOCATION = 'Butol Santiago Ilocos Sur Zone 3';
@@ -205,53 +203,24 @@
         };
         const message = buildBookingEmailMessage(bookingId, bookingMeta);
         const subject = 'Appointment Request Received - RayGain Physiotherapy Clinic';
-        const templateParams = {
-            to_email: recipientEmail,
-            email: recipientEmail,
-            user_email: recipientEmail,
-            recipient_email: recipientEmail,
-            gmail: recipientEmail,
-            to: recipientEmail,
-            recipient: recipientEmail,
-            send_to: recipientEmail,
-            to_name: message.fullName,
-            name: message.fullName,
-            from_name: RAYGAIN_EMAIL_SENDER,
-            reply_to: RAYGAIN_EMAIL_SENDER,
-            subject: subject,
-            patient_name: message.fullName,
-            service_type: bookingMeta.serviceType,
-            booking_date: bookingMeta.dateLabel,
-            booking_time: bookingMeta.timeLabel,
-            booking_id: bookingId || 'N/A',
-            clinic_location: CLINIC_LOCATION,
-            clinic_contact: CLINIC_CONTACT_NUMBER,
-            clinic_email: RAYGAIN_EMAIL_SENDER,
-            message_html: message.html,
-            message_text: message.text,
-            message: message.text
-        };
 
-        // Prefer Firebase Extension: Trigger Email (writes to Firestore `mail` collection).
-        if (db && typeof db.collection === 'function') {
-            await db.collection('mail').add({
-                to: recipientEmail,
-                message: {
-                    subject: subject,
-                    text: message.text,
-                    html: message.html
-                },
-                createdAt: new Date().toISOString(),
-                source: 'booking-page',
-                bookingId: bookingId || null,
-                templateParams: templateParams
-            });
-            return { deliveryMode: 'firestore', recipientEmail: recipientEmail };
+        if (!db || typeof db.collection !== 'function') {
+            throw new Error('Email service is unavailable. Please refresh and try again.');
         }
 
-        const mailtoUrl = `mailto:${encodeURIComponent(recipientEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message.text)}`;
-        window.open(mailtoUrl, '_blank');
-        return { deliveryMode: 'mailto', recipientEmail: recipientEmail };
+        // Firebase Extension: Trigger Email listens to the `mail` collection by default.
+        await db.collection('mail').add({
+            to: recipientEmail,
+            message: {
+                subject: subject,
+                text: message.text,
+                html: message.html
+            },
+            createdAt: new Date().toISOString(),
+            source: 'booking-page',
+            bookingId: bookingId || null
+        });
+        return { deliveryMode: 'firestore', recipientEmail: recipientEmail };
     }
 
     function renderCalendar() {
@@ -716,11 +685,8 @@
                     emailResult = { deliveryMode: 'failed', error: emailError };
                 }
 
-                if (emailResult && emailResult.deliveryMode === 'emailjs') {
+                if (emailResult && emailResult.deliveryMode === 'firestore') {
                     bookingMessage.textContent = `Booking saved successfully. Email sent to ${emailResult.recipientEmail}.`;
-                    bookingMessage.style.color = '#1d7b85';
-                } else if (emailResult && emailResult.deliveryMode === 'mailto') {
-                    bookingMessage.textContent = `Booking saved successfully. Your mail app opened for ${emailResult.recipientEmail}.`;
                     bookingMessage.style.color = '#1d7b85';
                 } else if (emailResult && emailResult.error) {
                     bookingMessage.textContent = `Booking saved successfully, but email could not be sent: ${emailResult.error.message || 'Unknown error'}`;

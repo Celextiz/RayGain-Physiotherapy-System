@@ -1021,7 +1021,7 @@
 
                             form && form.addEventListener('submit', async function(e){
                                 e.preventDefault();
-                                if(!window.db || typeof db.collection !== 'function'){
+                                if(!window.db || typeof window.db.collection !== 'function'){
                                     alert('Support service currently unavailable.');
                                     return;
                                 }
@@ -1035,7 +1035,7 @@
                                         status: 'Pending',
                                         createdAt: new Date().toISOString()
                                     };
-                                    await db.collection('supportRequests').add(payload);
+                                    await window.db.collection('supportRequests').add(payload);
                                     alert('Support request submitted. We will contact you shortly.');
                                     form.reset();
                                     closeModal();
@@ -1078,6 +1078,7 @@
 
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+        window.db = db;
         // Avoid Firestore WebChannel issues (often seen as /Write/channel errors) on some networks/browsers.
         try { db.settings({ experimentalForceLongPolling: true, useFetchStreams: false, merge: true }); } catch (e) {}
 
