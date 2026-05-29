@@ -1052,14 +1052,13 @@
                 <table id="supportRequestsTable" style="width:100%;border-collapse:collapse;margin-bottom:1rem;">
                     <thead>
                         <tr>
-                            <th style="width:140px;">Ticket ID</th>
-                            <th>Patient Name</th>
-                            <th>Email</th>
-                            <th>Concern Type</th>
-                            <th>Message</th>
-                            <th style="width:160px;">Date Submitted</th>
-                            <th style="width:110px;">Status</th>
-                            <th style="width:220px;text-align:center;">Actions</th>
+                            <th style="width:120px;">Ticket ID</th>
+                            <th style="width:140px;">Patient Name</th>
+                            <th style="width:180px;">Email</th>
+                            <th style="width:140px;">Concern Type</th>
+                            <th style="width:130px;">Date Submitted</th>
+                            <th style="width:90px;">Status</th>
+                            <th style="width:240px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="supportRequestsTableBody"></tbody>
@@ -1107,9 +1106,16 @@
                         };
 
                         function renderRow(req){
-                            const id = req.id;
-                            const created = req.createdAt ? new Date(req.createdAt).toLocaleString() : '';
-                            return `<tr data-id="${id}"><td style="padding:8px;">${id}</td><td style="padding:8px;">${escapeHtml(req.fullName||'')}</td><td style="padding:8px;">${escapeHtml(req.email||'')}</td><td style="padding:8px;">${escapeHtml(req.type||'')}</td><td style="padding:8px;max-width:360px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(req.message||'')}</td><td style="padding:8px;">${created}</td><td style="padding:8px;">${escapeHtml(req.status||'Pending')}</td><td style="padding:8px;text-align:center;"><button class="btn small view-support-btn" data-id="${id}">View</button> <button class="btn small reply-support-btn" data-id="${id}">Reply</button> <button class="btn small" data-action="resolve" data-id="${id}">Mark Resolved</button> <button class="btn small danger" data-action="delete" data-id="${id}">Delete</button></td></tr>`;
+                            const docId = req.id;
+                            const ticketId = req.ticketId || docId;
+                            const created = req.createdAt ? new Date(req.createdAt).toLocaleString('en-US', {month:'2-digit',day:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+                            const actionButtons = `<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;justify-items:stretch;">
+                                <button class="btn small view-support-btn" data-id="${docId}" style="min-width:0;background:#0078D4;color:#fff;border:none;border-radius:4px;padding:6px 8px;cursor:pointer;font-weight:600;font-size:12px;white-space:nowrap;">View</button>
+                                <button class="btn small reply-support-btn" data-id="${docId}" style="min-width:0;background:#9C27B0;color:#fff;border:none;border-radius:4px;padding:6px 8px;cursor:pointer;font-weight:600;font-size:12px;white-space:nowrap;">Reply</button>
+                                <button class="btn small" data-action="resolve" data-id="${docId}" style="min-width:0;background:#28A745;color:#fff;border:none;border-radius:4px;padding:6px 8px;cursor:pointer;font-weight:600;font-size:12px;white-space:nowrap;">Resolve</button>
+                                <button class="btn small danger" data-action="delete" data-id="${docId}" style="min-width:0;background:#DC3545;color:#fff;border:none;border-radius:4px;padding:6px 8px;cursor:pointer;font-weight:600;font-size:12px;white-space:nowrap;">Delete</button>
+                            </div>`;
+                            return `<tr data-id="${docId}"><td style="padding:6px 8px;">${escapeHtml(ticketId)}</td><td style="padding:6px 8px;">${escapeHtml(req.fullName||'')}</td><td style="padding:6px 8px;">${escapeHtml(req.email||'')}</td><td style="padding:6px 8px;">${escapeHtml(req.type||'')}</td><td style="padding:6px 8px;">${created}</td><td style="padding:6px 8px;">${escapeHtml(req.status||'Pending')}</td><td style="padding:6px 8px;">${actionButtons}</td></tr>`;
                         }
 
                         function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]; }); }
@@ -1140,6 +1146,7 @@
                             const q = (supportSearch && supportSearch.value || '').trim().toLowerCase();
                             const statusFilter = supportFilter && supportFilter.value;
                             const rows = requests.filter(r=>{
+                                if(r.isDeleted) return false;
                                 if(statusFilter && statusFilter!=='all' && r.status!==statusFilter) return false;
                                 if(q){ const hay = `${r.fullName||''} ${r.email||''} ${r.message||''} ${r.type||''}`.toLowerCase(); return hay.includes(q); }
                                 return true;
@@ -1151,7 +1158,7 @@
                             supportBody.querySelectorAll('button[data-action="resolve"]').forEach(b=>b.onclick=async ()=>{ await markResolved(b.dataset.id); });
                             supportBody.querySelectorAll('button[data-action="delete"]').forEach(b=>b.onclick=async ()=>{ await deleteRequest(b.dataset.id); });
                             // update badge
-                            const pending = requests.filter(r=>r.status==='Pending').length;
+                            const pending = requests.filter(r=>r.status==='Pending' && !r.isDeleted).length;
                             if(supportBadge){ if(pending>0){ supportBadge.style.display='inline-block'; supportBadge.textContent = pending; } else { supportBadge.style.display='none'; }}
                         }
 
@@ -1179,12 +1186,18 @@
 
                         async function markResolved(id){
                             if(!confirm('Mark this request as resolved?')) return;
-                            try{ await window.db.collection('supportRequests').doc(id).update({ status:'Resolved', resolvedAt: new Date().toISOString() }); await loadSupportRequests(); }catch(e){ console.error(e); alert('Failed to update.'); }
+                            try{ await window.db.collection('supportRequests').doc(id).update({ status:'Resolved', resolvedAt: new Date().toISOString() }); await loadSupportRequests(); try { await loadArchive(); } catch (e) { console.warn('Archive refresh failed:', e); } }catch(e){ console.error(e); alert('Failed to update.'); }
                         }
 
                         async function deleteRequest(id){
-                            if(!confirm('Delete this support request? This cannot be undone.')) return;
-                            try{ await window.db.collection('supportRequests').doc(id).delete(); await loadSupportRequests(); }catch(e){ console.error(e); alert('Failed to delete.'); }
+                            if(!confirm('Are you sure you want to remove this concern from the support list?')) return;
+                            try{
+                                const req = requests.find(r=>r.id===id);
+                                if(!req) return alert('Request not found');
+                                await window.db.collection('supportRequests').doc(id).update({ isDeleted: true, deletedAt: new Date().toISOString() });
+                                await loadSupportRequests();
+                                try { await loadArchive(); } catch (e) { console.warn('Archive refresh failed:', e); }
+                            }catch(e){ console.error(e); alert('Failed to delete.'); }
                         }
 
                         if(closeView) closeView.onclick = ()=>{ viewModal.classList.add('hidden'); viewModal.setAttribute('aria-hidden','true'); };
@@ -1322,6 +1335,28 @@
                         </tr>
                     </thead>
                     <tbody id="archiveCanceledAppointmentsTableBody"></tbody>
+                </table>
+
+                <h3>Canceled Support Requests</h3>
+                <table style="width:100%;border-collapse:collapse;margin-bottom:1rem;">
+                    <thead>
+                        <tr>
+                            <th style="width:130px;text-align:center;">
+                                <label style="display:inline-flex;align-items:center;gap:6px;font-size:0.9rem;color:#fff;">
+                                    <input id="selectAllArchiveSupport" type="checkbox" onchange="toggleArchiveSelectAll('support', this.checked)">
+                                    Select all
+                                </label>
+                            </th>
+                            <th>Ticket ID</th>
+                            <th>Patient Name</th>
+                            <th>Email</th>
+                            <th>Concern Type</th>
+                            <th>Message</th>
+                            <th>Canceled At</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="archiveSupportTableBody"></tbody>
                 </table>
             </section>
 
@@ -6944,6 +6979,44 @@
                 sessionsBody.appendChild(tr);
             }
 
+            // Load canceled support requests
+            const supportBody = document.getElementById('archiveSupportTableBody');
+            if (supportBody) {
+                supportBody.innerHTML = '';
+                try {
+                    const supportSnapshot = await db.collection('supportRequests').where('isDeleted','==', true).get();
+                    supportSnapshot.forEach(doc => {
+                        const sr = doc.data();
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td style="text-align:center;"><input type="checkbox" class="archive-row-checkbox" data-archive-group="support" data-collection="supportRequests" data-id="${doc.id}" data-recover-kind="support" onchange="syncArchiveSelectAllState('support')" title="Select row"></td>
+                            <td>${sr.ticketId || doc.id}</td>
+                            <td>${sr.fullName || ''}</td>
+                            <td>${sr.email || ''}</td>
+                            <td>${sr.type || ''}</td>
+                            <td>${(sr.message || '').substring(0, 50)}${(sr.message || '').length > 50 ? '...' : ''}</td>
+                            <td>${sr.deletedAt ? new Date(sr.deletedAt).toLocaleString() : ''}</td>
+                            <td style="text-align:center;"><button class="btn small danger" data-action="permanent-delete" data-id="${doc.id}" style="background:#DC3545;color:#fff;border:none;border-radius:4px;padding:6px 8px;cursor:pointer;font-size:12px;font-weight:600;">Delete</button></td>
+                        `;
+                        tr.querySelectorAll('button[data-action="permanent-delete"]').forEach(b => {
+                            b.onclick = async () => {
+                                if(!confirm('This concern will be deleted permanently. Continue?')) return;
+                                try {
+                                    await window.db.collection('supportRequests').doc(b.dataset.id).delete();
+                                    await loadArchive();
+                                } catch(e) {
+                                    console.error(e);
+                                    alert('Failed to delete permanently.');
+                                }
+                            };
+                        });
+                        supportBody.appendChild(tr);
+                    });
+                } catch(e) {
+                    console.error('Error loading canceled support requests:', e);
+                }
+            }
+
             const archivedCanceledBody = document.getElementById('archiveCanceledAppointmentsTableBody');
             if (archivedCanceledBody) archivedCanceledBody.innerHTML = '';
 
@@ -6989,6 +7062,7 @@
             syncArchiveSelectAllState('patients');
             syncArchiveSelectAllState('sessions');
             syncArchiveSelectAllState('canceled');
+            syncArchiveSelectAllState('support');
             filterArchiveTables();
         } catch (error) {
             console.error('Error loading archive:', error);
@@ -6998,7 +7072,8 @@ const archiveSelectAllMap = {
         pending: 'selectAllArchivePending',
         patients: 'selectAllArchivePatients',
         sessions: 'selectAllArchiveSessions',
-        canceled: 'selectAllArchiveCanceled'
+        canceled: 'selectAllArchiveCanceled',
+        support: 'selectAllArchiveSupport'
     };
 
     window.toggleArchiveSelectAll = function(group, checked) {
@@ -15092,7 +15167,8 @@ async function updateRayGainAnalytics() {
         const data = doc.data() || {};
         if (data.canceledArchived) archivedCanceledAppointmentsCount++;
     });
-    const archiveCount = deletedInquiries + deletedPatientsSnapshot.size + deletedSessionsSnapshot.size + archivedCanceledAppointmentsCount;
+    const deletedSupportSnapshot = await db.collection('supportRequests').where('isDeleted','==', true).get();
+    const archiveCount = deletedInquiries + deletedPatientsSnapshot.size + deletedSessionsSnapshot.size + archivedCanceledAppointmentsCount + deletedSupportSnapshot.size;
     const archiveBadge = document.getElementById('archiveBadge');
     if (archiveBadge) {
         if (archiveCount > 0) {

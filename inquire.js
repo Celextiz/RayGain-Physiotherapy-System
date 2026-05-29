@@ -449,6 +449,24 @@
         });
     }
 
+    async function generateSupportTicketId(){
+        const firestore = window.raygainDb || window.db || null;
+        if(!firestore || typeof firestore.collection !== 'function' || typeof firestore.runTransaction !== 'function') return '0001C';
+        const counterRef = firestore.collection('counters').doc('supportRequests');
+        try{
+            const newSeq = await firestore.runTransaction(async (tx) => {
+                const doc = await tx.get(counterRef);
+                if(!doc.exists){ tx.set(counterRef, { seq: 1 }); return 1; }
+                const cur = doc.data().seq || 0;
+                const next = cur + 1;
+                tx.update(counterRef, { seq: next });
+                return next;
+            });
+            const nextId = String(newSeq).padStart(4,'0');
+            return nextId + 'C';
+        }catch(err){ console.warn('ticket id tx failed', err); return '0001C'; }
+    }
+
     if(form){
         form.addEventListener('submit', async function(e){
             e.preventDefault();
@@ -459,7 +477,9 @@
             submitBtn.disabled = true;
             submitBtn.textContent = 'Submitting...';
             try{
+                const ticketId = await generateSupportTicketId();
                 const payload = {
+                    ticketId,
                     fullName: document.getElementById('csFullName').value.trim(),
                     email: document.getElementById('csEmail').value.trim(),
                     type: document.getElementById('csType').value,
@@ -467,7 +487,7 @@
                     status: 'Pending',
                     createdAt: new Date().toISOString()
                 };
-                await db.collection('supportRequests').add(payload);
+                await db.collection('supportRequests').doc(ticketId).set(payload);
                 alert('Support request submitted. We will contact you shortly.');
                 form.reset();
                 closeModal();
