@@ -858,6 +858,25 @@
                         <button id="openManageAppointmentsBtn" class="btn primary">Manage Calendar</button>
                     </div>
                 </div>
+
+                <!-- Reply Compose Modal -->
+                <div id="supportReplyModal" class="modal hidden" aria-hidden="true" role="dialog" style="z-index:11006;">
+                    <div class="modal-content" style="max-width:760px;margin:48px auto;padding:20px;">
+                        <div class="modal-header">
+                            <h2 id="supportReplyTitle">Reply to Support Request</h2>
+                            <button id="closeSupportReplyModal" class="icon-btn">✖</button>
+                        </div>
+                        <div style="margin-top:12px;">
+                            <div style="margin-bottom:8px;"><label style="display:block;font-weight:700;margin-bottom:6px;">To</label><input id="replyToEmail" type="text" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;" readonly></div>
+                            <div style="margin-bottom:8px;"><label style="display:block;font-weight:700;margin-bottom:6px;">Subject</label><input id="replySubject" type="text" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;"></div>
+                            <div style="margin-bottom:8px;"><label style="display:block;font-weight:700;margin-bottom:6px;">Message</label><textarea id="replyBody" rows="8" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;"></textarea></div>
+                        </div>
+                        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+                            <button id="sendSupportReplyBtn" class="btn primary">Send</button>
+                            <button id="cancelSupportReplyBtn" class="btn">Cancel</button>
+                        </div>
+                    </div>
+                </div>
                 <div class="calendar-controls">
                     <button id="prevMonth" class="btn">&lt;</button>
                     <span id="monthLabel" class="month-label"></span>
@@ -1100,6 +1119,29 @@
                         let requests = [];
                         let selectedRequest = null;
 
+                        // Robust event delegation for support table actions
+                        if(supportBody){
+                            supportBody.addEventListener('click', async function(ev){
+                                const btn = ev.target.closest('button');
+                                if(!btn) return;
+                                if(btn.classList.contains('reply-support-btn')){
+                                    const id = btn.dataset.id; if(id) await replyToRequest(id);
+                                    return;
+                                }
+                                if(btn.classList.contains('view-support-btn')){
+                                    const id = btn.dataset.id; if(id) await openViewModal(id);
+                                    return;
+                                }
+                                const action = btn.dataset && btn.dataset.action;
+                                if(action === 'resolve'){
+                                    const id = btn.dataset.id; if(id) await markResolved(id); return;
+                                }
+                                if(action === 'delete'){
+                                    const id = btn.dataset.id; if(id) await deleteRequest(id); return;
+                                }
+                            });
+                        }
+
                         if(sectionBtn) sectionBtn.onclick = function () {
                             showSection('supportRequestsSection');
                             loadSupportRequests();
@@ -1165,6 +1207,7 @@
                         async function openViewModal(id){
                             selectedRequest = requests.find(r=>r.id===id);
                             if(!selectedRequest) return alert('Request not found');
+                            if(viewModal) viewModal.dataset.selectedId = id;
                             if(viewBody) viewBody.innerHTML = `
                                 <p><strong>From:</strong> ${escapeHtml(selectedRequest.fullName||'')} &lt;${escapeHtml(selectedRequest.email||'')}&gt;</p>
                                 <p><strong>Type:</strong> ${escapeHtml(selectedRequest.type||'')}</p>
@@ -1177,12 +1220,93 @@
 
                         async function replyToRequest(id){
                             const r = requests.find(x=>x.id===id); if(!r) return alert('Request not found');
-                            const subject = encodeURIComponent('Re: Support Request from RayGain');
-                            const body = encodeURIComponent('\n\n---\nSupport Ticket: '+id+'\nOriginal message:\n'+(r.message||''));
-                            window.location = `mailto:${encodeURIComponent(r.email)}?subject=${subject}&body=${body}`;
-                            // record reply note
-                            try{ await window.db.collection('supportRequests').doc(id).set({ lastRepliedAt: new Date().toISOString() }, { merge:true }); await loadSupportRequests(); }catch(e){ console.warn(e); }
+                            // open the compose modal
+                            const replyModal = document.getElementById('supportReplyModal');
+                            const toEl = document.getElementById('replyToEmail');
+                            const subjEl = document.getElementById('replySubject');
+                            const bodyEl = document.getElementById('replyBody');
+                            if(toEl) toEl.value = r.email || '';
+                            if(subjEl) subjEl.value = `Re: Support Request from RayGain`;
+                            if(bodyEl) bodyEl.value = `\n\n---\nSupport Ticket: ${r.id}\nOriginal message:\n${r.message || ''}`;
+                            if(replyModal){ replyModal.classList.remove('hidden'); replyModal.setAttribute('aria-hidden','false'); }
                         }
+
+                        // expose for debugging/inline handlers
+                        try{ window.replyToRequest = replyToRequest; }catch(e){}
+
+                        // Send reply from compose modal
+                        async function sendSupportReply(){
+                            const toEl = document.getElementById('replyToEmail');
+                            const subjEl = document.getElementById('replySubject');
+                            const bodyEl = document.getElementById('replyBody');
+                            if(!toEl || !subjEl || !bodyEl) return alert('Reply form not found');
+                            const to = String(toEl.value || '').trim();
+                            const subj = String(subjEl.value || '').trim();
+                            const body = String(bodyEl.value || '').trim();
+                            if(!to) return alert('Recipient email missing');
+
+                            // determine ticket id (prefer selectedRequest)
+                            let ticketId = null;
+                            if (selectedRequest && selectedRequest.email === to) ticketId = selectedRequest.id;
+                            if (!ticketId && viewModal && viewModal.dataset && viewModal.dataset.selectedId) ticketId = viewModal.dataset.selectedId;
+                            if (!ticketId) {
+                                const ticketMatch = requests.find(r=>r.email === to && (body || '').includes(r.id));
+                                if (ticketMatch) ticketId = ticketMatch.id;
+                            }
+
+                            // Try to send via Firestore 'mail' (Trigger Email extension) like booking flow
+                            try{
+                                if(!window.db || typeof window.db.collection !== 'function') throw new Error('Firestore unavailable');
+                                const mailRef = await window.db.collection('mail').add({
+                                    to: to,
+                                    message: {
+                                        subject: subj || 'Support Reply from RayGain',
+                                        text: body || ''
+                                    },
+                                    createdAt: new Date().toISOString(),
+                                    source: 'therapist-dashboard-supportReply',
+                                    supportRequestId: ticketId || null
+                                });
+
+                                // wait for delivery status (reuse waitForMailDeliveryStatus if available)
+                                let deliveryState = 'PENDING';
+                                let deliveryError = '';
+                                if (typeof waitForMailDeliveryStatus === 'function'){
+                                    const status = await waitForMailDeliveryStatus(mailRef.id, 30000);
+                                    deliveryState = status.state || 'PENDING';
+                                    deliveryError = status.error || '';
+                                }
+
+                                // record reply metadata on support request
+                                if(ticketId){
+                                    const update = { lastRepliedAt: new Date().toISOString(), replySent: true, mailDocId: mailRef.id, replyDeliveryState: deliveryState };
+                                    if(deliveryError) update.replyDeliveryError = deliveryError;
+                                    await window.db.collection('supportRequests').doc(ticketId).set(update, { merge:true });
+                                    await loadSupportRequests();
+                                }
+
+                                // show result to user
+                                if(deliveryState === 'SUCCESS'){
+                                    alert('Reply sent via Trigger Email and delivered successfully.');
+                                } else if (deliveryState === 'ERROR'){
+                                    alert('Reply saved to Trigger Email but delivery failed: ' + (deliveryError||'Unknown error') + '\nOpening mail client as fallback.');
+                                    window.location = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
+                                } else {
+                                    alert('Reply queued via Trigger Email (delivery pending).');
+                                }
+                            }catch(e){
+                                console.warn('Trigger Email failed, falling back to mailto:', e);
+                                try{ window.location = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`; }catch(err){ console.warn('Failed to open mail client', err); }
+                                // still attempt to record lastRepliedAt if we have a ticketId
+                                try{ if(ticketId && window.db && typeof window.db.collection === 'function') { await window.db.collection('supportRequests').doc(ticketId).set({ lastRepliedAt: new Date().toISOString() }, { merge:true }); await loadSupportRequests(); } }catch(err){ console.warn('Failed to record reply timestamp after fallback', err); }
+                            }
+
+                            // close modal
+                            const replyModal = document.getElementById('supportReplyModal');
+                            if(replyModal){ replyModal.classList.add('hidden'); replyModal.setAttribute('aria-hidden','true'); }
+                        }
+
+                        try{ window.sendSupportReply = sendSupportReply; }catch(e){}
 
                         async function markResolved(id){
                             if(!confirm('Mark this request as resolved?')) return;
@@ -1203,7 +1327,21 @@
                         if(closeView) closeView.onclick = ()=>{ viewModal.classList.add('hidden'); viewModal.setAttribute('aria-hidden','true'); };
                         if(markResolvedBtn) markResolvedBtn.onclick = async ()=>{ if(selectedRequest) await markResolved(selectedRequest.id); };
                         if(deleteBtn) deleteBtn.onclick = async ()=>{ if(selectedRequest) await deleteRequest(selectedRequest.id); };
-                        if(replyBtn) replyBtn.onclick = async ()=>{ if(selectedRequest) await replyToRequest(selectedRequest.id); };
+                        if(replyBtn) replyBtn.onclick = ()=>{
+                            if(selectedRequest) return replyToRequest(selectedRequest.id);
+                            const fallbackId = (viewModal && viewModal.dataset && viewModal.dataset.selectedId) ? viewModal.dataset.selectedId : null;
+                            if(fallbackId) return replyToRequest(fallbackId);
+                            alert('No support request selected to reply to. Open a request first.');
+                        };
+
+                        // Reply modal controls
+                        const replyModalEl = document.getElementById('supportReplyModal');
+                        const closeReplyBtn = document.getElementById('closeSupportReplyModal');
+                        const cancelReplyBtn = document.getElementById('cancelSupportReplyBtn');
+                        const sendReplyBtn = document.getElementById('sendSupportReplyBtn');
+                        if(closeReplyBtn) closeReplyBtn.onclick = ()=>{ if(replyModalEl){ replyModalEl.classList.add('hidden'); replyModalEl.setAttribute('aria-hidden','true'); } };
+                        if(cancelReplyBtn) cancelReplyBtn.onclick = ()=>{ if(replyModalEl){ replyModalEl.classList.add('hidden'); replyModalEl.setAttribute('aria-hidden','true'); } };
+                        if(sendReplyBtn) sendReplyBtn.onclick = async ()=>{ await sendSupportReply(); };
 
                         if(supportSearch) supportSearch.addEventListener('input', ()=> renderSupportTable());
                         if(supportFilter) supportFilter.addEventListener('change', ()=> renderSupportTable());
@@ -1365,6 +1503,13 @@
                 <h2 class="section-title-table" style="margin-bottom:1rem;">Patients</h2>
                 <div id="patientsSectionHeader" style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:1.5rem;">
                     <div id="patientsToolbar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">
+                        <div style="display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #ddd;border-radius:4px;padding:0 8px;">
+                            <label for="patientsSortSelect" style="font-size:0.9rem;color:#666;">Sort by</label>
+                            <select id="patientsSortSelect" style="border:none;padding:8px 6px;outline:none;background:transparent;font-size:0.9rem;">
+                                <option value="patientId">Patient ID</option>
+                                <option value="lastName">Last Name</option>
+                            </select>
+                        </div>
                         <div id="searchContainer" style="display:flex;align-items:center;border:1px solid #ddd;border-radius:4px;padding:0;background:#fff;">
                             <input id="patientsSearchInput" type="text" placeholder="Search patients..." style="border:none;padding:8px 12px;outline:none;flex:1;font-size:0.9rem;">
                             <button id="patientsSearchBtn" class="search-btn" style="border:none;background:none;padding:8px 12px;cursor:pointer;display:flex;align-items:center;color:#666;">
@@ -3846,12 +3991,8 @@
 
             <div id="dashboardRedBoxRow" class="analytics-charts-row" style="display:grid !important;grid-template-columns:minmax(0,1.66fr) minmax(0,1.28fr) minmax(0,0.74fr) !important;gap:12px !important;align-items:stretch !important;margin-top:12px !important;width:100% !important;">
                 <div id="commonCasesBox" class="common-cases-card" style="width:100% !important;min-width:0 !important;max-width:none !important;min-height:360px;display:flex;flex-direction:column;background:#fff !important;border:1px solid #e6eef2 !important;border-radius:14px !important;box-shadow:0 6px 18px rgba(13,44,62,0.08) !important;padding:14px 16px !important;margin:0 !important;">
-                    <div class="common-cases-head">
+                    <div class="common-cases-head" style="display:flex;align-items:center;justify-content:space-between;">
                         <h3 class="common-cases-title">Common Cases</h3>
-                        <div class="common-cases-view-toggle" role="tablist" aria-label="Common cases period">
-                            <button id="commonCasesWeeklyBtn" type="button" class="is-active" data-range="weekly" aria-pressed="true">Weekly</button>
-                            <button id="commonCasesMonthlyBtn" type="button" data-range="monthly" aria-pressed="false">Monthly</button>
-                        </div>
                     </div>
                     <div class="chart-panel" style="height:260px;">
                         <canvas id="commonCasesChart"></canvas>
@@ -4217,13 +4358,26 @@
     }
     setupStatusOverviewNavigation();
     document.addEventListener('DOMContentLoaded', () => {
-        if (typeof window.setupCommonCasesRangeToggle === 'function') {
-            window.setupCommonCasesRangeToggle();
-        }
         setupWeeklyScheduleControls();
         setupClinicDemandForecastControls();
         setupSessionRecoveryForecastControls();
         forceDashboardRowLayout();
+        // start realtime subscriptions for clinic demand
+        try { subscribeClinicDemandRealtime(); } catch (e) { console.warn(e); }
+        // Auto-seed demo data if appointments are few
+        (async () => {
+            try {
+                if (window.db && typeof window.db.collection === 'function') {
+                    const apptSnap = await window.db.collection('appointments').get();
+                    const apptCount = apptSnap ? apptSnap.size || 0 : 0;
+                    if (apptCount < 10) {
+                        await window.seedDemoPatients(10);
+                    }
+                }
+            } catch (e) {
+                console.warn('auto-seed failed', e);
+            }
+        })();
     });
 
     function forceDashboardRowLayout() {
@@ -4722,9 +4876,12 @@
         try {
             const snapshot = await db.collection('patients').get();
             const patientsTableBody = document.getElementById('patientsTableBody');
+            const patientsSortSelect = document.getElementById('patientsSortSelect');
+            const sortMode = patientsSortSelect ? patientsSortSelect.value : 'patientId';
             patientsTableBody.innerHTML = '';
 
-            const preparedPatients = await buildUniquePatientsFromDocs(snapshot.docs);
+            const sessionsByPatient = window._sessionsByPatientCache || {};
+            const preparedPatients = await buildUniquePatientsFromDocs(snapshot.docs, sortMode);
 
             if (!preparedPatients.patients.length) {
                 patientsTableBody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:#666;">No patients found</td></tr>';
@@ -4735,7 +4892,7 @@
                 const patient = entry.patient;
                 const doc = entry.doc;
                 const row = document.createElement('tr');
-                                row.style.borderBottom = '1px solid #ddd';
+                row.style.borderBottom = '1px solid #ddd';
                 row.innerHTML = `
                     <td style="padding:10px;border-right:1px solid #eee;">${patient.patientId || ''}</td>
                     <td style="padding:10px;border-right:1px solid #eee;">${patient.firstName || ''}</td>
@@ -4755,6 +4912,8 @@
 
             if (preparedPatients.duplicateDocIds.length) {
                 await removeDuplicatePatientsFromFirestore(preparedPatients.duplicateDocIds);
+                await loadPatients();
+                return;
             }
         } catch (error) {
             console.error('Error loading patients:', error);
@@ -4778,12 +4937,28 @@
         ].join('|');
     }
 
-    function getPatientSortKey(patient) {
+    function getPatientSortKey(patient, sortMode) {
+        const mode = sortMode === 'lastName' ? 'lastName' : 'patientId';
+        const patientId = String(patient?.patientId || '').trim();
+        const patientIdParts = patientId.match(/\d+/g) || [];
+        const patientIdSortValue = patientIdParts.length
+            ? patientIdParts.map(part => part.padStart(10, '0')).join('|')
+            : patientId.toLowerCase();
+
+        if (mode === 'lastName') {
+            return [
+                normalizePatientText(patient?.lastName),
+                normalizePatientText(patient?.firstName),
+                normalizePatientText(patient?.middleName),
+                patientIdSortValue
+            ].join('|');
+        }
+
         return [
+            patientIdSortValue,
             normalizePatientText(patient?.lastName),
             normalizePatientText(patient?.firstName),
-            normalizePatientText(patient?.middleName),
-            normalizePatientText(patient?.patientId)
+            normalizePatientText(patient?.middleName)
         ].join('|');
     }
 
@@ -4794,7 +4969,7 @@
         return 0;
     }
 
-    async function buildUniquePatientsFromDocs(docs) {
+    async function buildUniquePatientsFromDocs(docs, sortMode = 'patientId') {
         const seenPatientIds = new Set();
         const seenIdentityKeys = new Set();
         const unique = [];
@@ -4804,6 +4979,9 @@
             .map((doc) => ({ doc, patient: doc.data() || {} }))
             .filter(({ patient }) => !patient.isDeleted)
             .sort((left, right) => {
+                const leftKey = getPatientSortKey(left.patient, sortMode);
+                const rightKey = getPatientSortKey(right.patient, sortMode);
+                if (leftKey !== rightKey) return leftKey.localeCompare(rightKey);
                 const leftTime = getPatientCreatedTime(left.patient, left.doc.id);
                 const rightTime = getPatientCreatedTime(right.patient, right.doc.id);
                 if (leftTime !== rightTime) return leftTime - rightTime;
@@ -4829,8 +5007,8 @@
         });
 
         unique.sort((left, right) => {
-            const leftKey = getPatientSortKey(left.patient);
-            const rightKey = getPatientSortKey(right.patient);
+            const leftKey = getPatientSortKey(left.patient, sortMode);
+            const rightKey = getPatientSortKey(right.patient, sortMode);
             if (leftKey !== rightKey) return leftKey.localeCompare(rightKey);
             return String(left.patient.patientId || '').localeCompare(String(right.patient.patientId || ''));
         });
@@ -4840,15 +5018,16 @@
             duplicateDocIds
         };
     }
-
+    
     async function removeDuplicatePatientsFromFirestore(duplicateDocIds) {
         const ids = Array.isArray(duplicateDocIds) ? duplicateDocIds.filter(Boolean) : [];
         if (!ids.length) return;
 
+        const uniqueIds = [...new Set(ids)];
         const chunkSize = 450;
-        for (let index = 0; index < ids.length; index += chunkSize) {
+        for (let index = 0; index < uniqueIds.length; index += chunkSize) {
             const batch = db.batch();
-            ids.slice(index, index + chunkSize).forEach((docId) => {
+            uniqueIds.slice(index, index + chunkSize).forEach((docId) => {
                 batch.delete(db.collection('patients').doc(docId));
             });
             await batch.commit();
@@ -4859,6 +5038,14 @@
         const snapshot = await db.collection('patients').get();
         const prepared = await buildUniquePatientsFromDocs(snapshot.docs);
         await removeDuplicatePatientsFromFirestore(prepared.duplicateDocIds);
+    }
+
+    function bindPatientSortControl() {
+        const patientsSortSelect = document.getElementById('patientsSortSelect');
+        if (!patientsSortSelect) return;
+        patientsSortSelect.onchange = async () => {
+            await loadPatients();
+        };
     }
 
     // Filter Patients Table by Search Input
@@ -4889,6 +5076,8 @@
     document.addEventListener('DOMContentLoaded', function() {
         const searchInput = document.getElementById('patientsSearchInput');
         const searchBtn = document.getElementById('patientsSearchBtn');
+
+        bindPatientSortControl();
 
         if (searchInput) {
             searchInput.addEventListener('keyup', filterPatientsTable);
@@ -6272,6 +6461,17 @@
             const visibleSessions = sessionsArray.filter(s => !s.isDeleted);
             // Sort by date descending (most recent first)
             visibleSessions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            // Update the compact patient Type label based on most recent session
+            try {
+                const compactPatientTypeEl = document.getElementById('compactPatientType');
+                if (compactPatientTypeEl) {
+                    const typeLabel = resolvePatientTypeLabel({}, visibleSessions);
+                    compactPatientTypeEl.textContent = typeLabel || '—';
+                }
+            } catch (e) {
+                console.warn('Failed to set compact patient type label', e);
+            }
 
             await renderPatientSessionAnalytics(patientDocId, visibleSessions);
             await renderSoapOverviewPanel(patientDocId);
@@ -13310,6 +13510,21 @@ const archiveSelectAllMap = {
     } catch (e) {
         console.warn('Realtime inquiries listener not available', e);
     }
+
+    // Realtime patients analytics: refresh dashboard widgets immediately when patient data changes
+    try {
+        db.collection('patients').onSnapshot(async function () {
+            try {
+                await updateRayGainAnalytics();
+            } catch (e) {
+                console.warn('Realtime patients analytics update failed:', e);
+            }
+        }, function (err) {
+            console.warn('Patients analytics listener error:', err);
+        });
+    } catch (e) {
+        console.warn('Realtime patients analytics listener not available', e);
+    }
     
     </script>
 
@@ -14886,7 +15101,6 @@ async function updateNotificationArea(inquiriesSnapshot) {
 }
 
 // RayGain Data Analytics: Updates analytics widgets and chart
-window._commonCasesRange = window._commonCasesRange || 'weekly';
 
 function parseAnyDate(raw) {
     if (!raw) return null;
@@ -14911,21 +15125,6 @@ function getPatientRecordDate(data) {
     return parseAnyDate(data.createdAt) || parseAnyDate(data.updatedAt) || parseAnyDate(data.timestamp) || null;
 }
 
-function inSelectedRange(date, range) {
-    if (!date) return true;
-    const now = new Date();
-    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-    let start = null;
-    if (range === 'weekly') {
-        start = new Date(end);
-        start.setDate(end.getDate() - 6);
-        start.setHours(0, 0, 0, 0);
-    } else if (range === 'monthly') {
-        start = new Date(end.getFullYear(), end.getMonth(), 1, 0, 0, 0, 0);
-    }
-    if (!start) return true;
-    return date >= start && date <= end;
-}
 
 window._scheduleWeekOffset = window._scheduleWeekOffset || 0;
 window._activeAppointmentsCache = window._activeAppointmentsCache || [];
@@ -15050,6 +15249,89 @@ function setupClinicDemandForecastControls() {
     }
 }
 
+function subscribeClinicDemandRealtime() {
+    const firestore = window.db;
+    if (!firestore || typeof firestore.collection !== 'function') return;
+
+    try {
+        firestore.collection('appointments').onSnapshot(snapshot => {
+            const activeAppointments = snapshot.docs
+                .map(d => ({ id: d.id, ...d.data() }))
+                .filter(r => !r.isDeleted && !r.canceledArchived);
+            window._activeAppointmentsCache = activeAppointments;
+            try { renderClinicDemandAnalytics(window._activeAppointmentsCache || [], window._inquiriesCache || []); } catch (e) { console.warn('clinic demand render failed', e); }
+        }, err => {
+            console.warn('appointments realtime listener error:', err);
+        });
+    } catch (e) {
+        console.warn('Failed to subscribe to clinic demand realtime:', e);
+    }
+}
+
+// Demo seeder: creates N patients and appointments to simulate clinic demand
+window.seedDemoPatients = async function(count = 10) {
+    if (!window.db || typeof window.db.collection !== 'function') return alert('Firestore not initialized');
+    if (!confirm(`Create ${count} demo patients and appointments?`)) return;
+
+    try {
+        const batch = window.db.batch();
+        const patientRefs = [];
+        for (let i = 1; i <= count; i++) {
+            const pid = String(i).padStart(4, '0') + 'D';
+            const ref = window.db.collection('patients').doc();
+            patientRefs.push({ ref, pid });
+            batch.set(ref, {
+                patientId: pid,
+                firstName: 'Demo'+i,
+                middleName: '',
+                lastName: 'Patient'+i,
+                age: 30 + (i % 10),
+                contact: '0900000' + String(100 + i),
+                caseHistory: 'Demo case',
+                isDeleted: false,
+                createdAt: new Date().toISOString()
+            });
+        }
+
+        // commit patients first
+        await batch.commit();
+
+        // create appointments for the next 7 days, distributing patients across times
+        const apptBatch = window.db.batch();
+        const now = new Date();
+        const times = ['09:00','10:30','13:30','15:00'];
+        let apptCount = 0;
+        patientRefs.forEach((p, idx) => {
+            const apptRef = window.db.collection('appointments').doc();
+            const dayOffset = idx % 7; // spread over next 7 days
+            const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + dayOffset);
+            const time = times[idx % times.length];
+            const [hh,mm] = time.split(':').map(Number);
+            date.setHours(hh, mm, 0, 0);
+            const sessionType = (idx % 4 === 0) ? 'Home' : 'Clinic';
+            apptBatch.set(apptRef, {
+                patientDocId: p.ref.id,
+                patientId: p.pid,
+                patientName: `Demo${idx+1} Patient${idx+1}`,
+                date: date.toISOString(),
+                sessionType: sessionType,
+                serviceType: sessionType,
+                createdAt: new Date().toISOString(),
+                isDeleted: false
+            });
+            apptCount++;
+        });
+
+        await apptBatch.commit();
+        alert(`Seeded ${patientRefs.length} demo patients and ${apptCount} appointments.`);
+        // trigger analytics refresh
+        try { await updateRayGainAnalytics(); } catch (e) { console.warn('update analytics after seed failed', e); }
+    } catch (e) {
+        console.error('Failed to seed demo patients:', e);
+        alert('Failed to seed demo data: ' + (e.message || e));
+    }
+};
+
 function setupSessionRecoveryForecastControls() {
     const prevBtn = document.getElementById('sessionRecoveryPrevBtn');
     const nextBtn = document.getElementById('sessionRecoveryNextBtn');
@@ -15096,6 +15378,21 @@ function resolvePatientServiceMode(row) {
     if (rawMode.includes('home')) return 'home';
     if (rawMode.includes('clinic') || rawMode.includes('in-clinic') || rawMode.includes('in clinic')) return 'clinic';
     return 'clinic';
+}
+
+function resolvePatientTypeLabel(patient, sessions = []) {
+    const activeSession = Array.isArray(sessions) && sessions.find((session) => {
+        if (!session || session.isDeleted) return false;
+        const mode = resolvePatientServiceMode(session);
+        return mode === 'home' || mode === 'clinic';
+    });
+
+    if (activeSession) {
+        return resolvePatientServiceMode(activeSession) === 'home' ? 'Home Care' : 'In-Clinic';
+    }
+
+    const fallbackMode = resolvePatientServiceMode(patient);
+    return fallbackMode === 'home' ? 'Home Care' : 'In-Clinic';
 }
 
 async function updateRayGainAnalytics() {
@@ -15196,10 +15493,30 @@ async function updateRayGainAnalytics() {
 
     const homeCarePatientKeys = new Set();
     const inClinicPatientKeys = new Set();
-    window._activeAppointmentsCache.forEach(row => {
-        const mode = resolvePatientServiceMode(row);
-        const patientKey = String(row.patientDocId || row.patientId || row.patientName || row.id || '').trim();
+    Object.values(sessionsByPatient).forEach(sessionList => {
+        sessionList.forEach(row => {
+            const mode = resolvePatientServiceMode(row);
+            const patientKey = String(row.patientDocId || row.patientId || row.patientName || row.id || '').trim();
+            if (!patientKey) return;
+            if (mode === 'home') {
+                homeCarePatientKeys.add(patientKey);
+            } else {
+                inClinicPatientKeys.add(patientKey);
+            }
+        });
+    });
+
+    // If an active patient has no session rows, fall back to the patient's own type fields.
+    activePatientDocs.forEach(doc => {
+        const data = doc.data() || {};
+        const patientKey = String(doc.id || '').trim();
         if (!patientKey) return;
+        if (homeCarePatientKeys.has(patientKey) || inClinicPatientKeys.has(patientKey)) return;
+
+        const rawModeValue = String(data.sessionType || data.serviceType || data.appointmentSessionType || '').trim();
+        if (!rawModeValue) return;
+
+        const mode = resolvePatientServiceMode(data);
         if (mode === 'home') {
             homeCarePatientKeys.add(patientKey);
         } else {
@@ -15270,13 +15587,10 @@ async function updateRayGainAnalytics() {
         }
     }
 
-    // Common Cases Chart (weekly/monthly toggle)
-    const selectedRange = window._commonCasesRange || 'weekly';
+    // Common Cases Chart (all patient conditions)
     const caseCounts = {};
     activePatientDocs.forEach(doc => {
         const data = doc.data() || {};
-        const recordDate = getPatientRecordDate(data);
-        if (!inSelectedRange(recordDate, selectedRange)) return;
         const caseHistory = data.caseHistory || 'Other';
         caseCounts[caseHistory] = (caseCounts[caseHistory] || 0) + 1;
     });
@@ -15817,29 +16131,6 @@ function renderClinicDemandAnalytics(appointments, inquiries) {
     });
 }
 
-function setupCommonCasesRangeToggle() {
-    const weeklyBtn = document.getElementById('commonCasesWeeklyBtn');
-    const monthlyBtn = document.getElementById('commonCasesMonthlyBtn');
-    if (!weeklyBtn || !monthlyBtn) return;
-
-    const setActive = (range) => {
-        window._commonCasesRange = range;
-        weeklyBtn.classList.toggle('is-active', range === 'weekly');
-        monthlyBtn.classList.toggle('is-active', range === 'monthly');
-        weeklyBtn.setAttribute('aria-pressed', String(range === 'weekly'));
-        monthlyBtn.setAttribute('aria-pressed', String(range === 'monthly'));
-    };
-
-    weeklyBtn.onclick = async () => {
-        setActive('weekly');
-        await updateRayGainAnalytics();
-    };
-    monthlyBtn.onclick = async () => {
-        setActive('monthly');
-        await updateRayGainAnalytics();
-    };
-    setActive(window._commonCasesRange || 'weekly');
-}
 
 function getRecoverySurveyDate(survey) {
     if (survey.sessionDate) return new Date(survey.sessionDate);
