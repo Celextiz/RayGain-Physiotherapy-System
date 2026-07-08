@@ -859,24 +859,7 @@
                     </div>
                 </div>
 
-                <!-- Reply Compose Modal -->
-                <div id="supportReplyModal" class="modal hidden" aria-hidden="true" role="dialog" style="z-index:11006;">
-                    <div class="modal-content" style="max-width:760px;margin:48px auto;padding:20px;">
-                        <div class="modal-header">
-                            <h2 id="supportReplyTitle">Reply to Support Request</h2>
-                            <button id="closeSupportReplyModal" class="icon-btn">✖</button>
-                        </div>
-                        <div style="margin-top:12px;">
-                            <div style="margin-bottom:8px;"><label style="display:block;font-weight:700;margin-bottom:6px;">To</label><input id="replyToEmail" type="text" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;" readonly></div>
-                            <div style="margin-bottom:8px;"><label style="display:block;font-weight:700;margin-bottom:6px;">Subject</label><input id="replySubject" type="text" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;"></div>
-                            <div style="margin-bottom:8px;"><label style="display:block;font-weight:700;margin-bottom:6px;">Message</label><textarea id="replyBody" rows="8" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;"></textarea></div>
-                        </div>
-                        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
-                            <button id="sendSupportReplyBtn" class="btn primary">Send</button>
-                            <button id="cancelSupportReplyBtn" class="btn">Cancel</button>
-                        </div>
-                    </div>
-                </div>
+
                 <div class="calendar-controls">
                     <button id="prevMonth" class="btn">&lt;</button>
                     <span id="monthLabel" class="month-label"></span>
@@ -1093,9 +1076,45 @@
                         <div id="supportViewBody" style="margin-top:12px;">
                         </div>
                         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
-                            <button id="supportReplyBtn" class="btn">Reply (mailto)</button>
+                            <button id="supportReplyBtn" class="btn primary">Reply</button>
                             <button id="supportMarkResolvedBtn" class="btn primary">Mark Resolved</button>
                             <button id="supportDeleteBtn" class="btn danger">Delete</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reply Compose Modal -->
+                <div id="supportReplyModal" class="modal hidden" aria-hidden="true" role="dialog" style="z-index:11008;">
+                    <div class="modal-content" style="max-width:820px;width:min(820px,96vw);margin:48px auto;padding:20px;max-height:92vh;overflow:auto;">
+                        <div class="modal-header">
+                            <h2 id="supportReplyTitle">Reply to Support Request</h2>
+                            <button id="closeSupportReplyModal" class="icon-btn" type="button" aria-label="Close">✖</button>
+                        </div>
+                        <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;">
+                            <div>
+                                <label for="replyFromEmail" style="display:block;font-weight:700;margin-bottom:6px;">From</label>
+                                <input id="replyFromEmail" type="text" value="RayGain Physiotherapy Clinic &lt;forcapstonefilesonly@gmail.com&gt;" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;background:#f7f7f7;" readonly>
+                            </div>
+                            <div>
+                                <label for="replyToEmail" style="display:block;font-weight:700;margin-bottom:6px;">To</label>
+                                <input id="replyToEmail" type="email" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;background:#f7f7f7;" readonly>
+                            </div>
+                            <div>
+                                <label for="replySubject" style="display:block;font-weight:700;margin-bottom:6px;">Subject</label>
+                                <input id="replySubject" type="text" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;">
+                            </div>
+                            <div>
+                                <label for="replyBody" style="display:block;font-weight:700;margin-bottom:6px;">Your Reply</label>
+                                <textarea id="replyBody" rows="7" placeholder="Write your reply to the patient..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;resize:vertical;font-family:inherit;line-height:1.45;"></textarea>
+                            </div>
+                            <div>
+                                <label style="display:block;font-weight:700;margin-bottom:6px;">Original Message</label>
+                                <div id="replyOriginalPreview" style="white-space:pre-wrap;background:#f5f8fa;border:1px solid #e0e6ea;border-radius:6px;padding:12px;font-size:0.92rem;line-height:1.5;color:#334155;max-height:180px;overflow:auto;"></div>
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+                            <button id="cancelSupportReplyBtn" class="btn" type="button">Cancel</button>
+                            <button id="sendSupportReplyBtn" class="btn primary" type="button">Send Email</button>
                         </div>
                     </div>
                 </div>
@@ -1218,92 +1237,176 @@
                             viewModal.classList.remove('hidden'); viewModal.setAttribute('aria-hidden','false');
                         }
 
-                        async function replyToRequest(id){
-                            const r = requests.find(x=>x.id===id); if(!r) return alert('Request not found');
-                            // open the compose modal
+                        async function openSupportReplyModal(id){
+                            const r = requests.find(x=>x.id===id);
+                            if(!r) return alert('Request not found');
+
+                            selectedRequest = r;
                             const replyModal = document.getElementById('supportReplyModal');
                             const toEl = document.getElementById('replyToEmail');
                             const subjEl = document.getElementById('replySubject');
                             const bodyEl = document.getElementById('replyBody');
-                            if(toEl) toEl.value = r.email || '';
-                            if(subjEl) subjEl.value = `Re: Support Request from RayGain`;
-                            if(bodyEl) bodyEl.value = `\n\n---\nSupport Ticket: ${r.id}\nOriginal message:\n${r.message || ''}`;
-                            if(replyModal){ replyModal.classList.remove('hidden'); replyModal.setAttribute('aria-hidden','false'); }
+                            const previewEl = document.getElementById('replyOriginalPreview');
+                            if(!replyModal || !toEl || !subjEl || !bodyEl) return alert('Reply form not found');
+
+                            if (replyModal.parentElement !== document.body) {
+                                document.body.appendChild(replyModal);
+                            }
+
+                            const ticketLabel = r.ticketId || r.id;
+                            const concernType = String(r.type || 'Support Request').trim();
+                            const patientName = String(r.fullName || 'Valued Patient').trim();
+                            const submittedAt = r.createdAt ? new Date(r.createdAt).toLocaleString('en-US', {
+                                month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'
+                            }) : 'Unknown date';
+
+                            toEl.value = r.email || '';
+                            subjEl.value = `Re: ${concernType} - RayGain Physiotherapy (Ticket ${ticketLabel})`;
+                            bodyEl.value = `Dear ${patientName},\n\nThank you for contacting RayGain Physiotherapy Clinic regarding your ${concernType.toLowerCase()} concern.\n\n`;
+                            if (previewEl) {
+                                previewEl.textContent = [
+                                    `From: ${patientName}${r.email ? ' <' + r.email + '>' : ''}`,
+                                    `Submitted: ${submittedAt}`,
+                                    `Concern: ${concernType}`,
+                                    '',
+                                    String(r.message || '(No message provided)')
+                                ].join('\n');
+                            }
+
+                            replyModal.dataset.ticketId = r.id;
+                            replyModal.classList.remove('hidden');
+                            replyModal.setAttribute('aria-hidden', 'false');
+                            document.body.style.overflow = 'hidden';
+                            bodyEl.focus();
+                        }
+
+                        function closeSupportReplyModal(){
+                            const replyModal = document.getElementById('supportReplyModal');
+                            if(!replyModal) return;
+                            replyModal.classList.add('hidden');
+                            replyModal.setAttribute('aria-hidden', 'true');
+                            replyModal.dataset.ticketId = '';
+                            document.body.style.overflow = '';
+                        }
+
+                        async function replyToRequest(id){
+                            await openSupportReplyModal(id);
                         }
 
                         // expose for debugging/inline handlers
-                        try{ window.replyToRequest = replyToRequest; }catch(e){}
+                        try{ window.replyToRequest = replyToRequest; window.openSupportReplyModal = openSupportReplyModal; }catch(e){}
+
+                        function buildSupportReplyEmailPayload(to, subject, replyText, request) {
+                            const patientName = String(request?.fullName || 'Valued Patient').trim();
+                            const concernType = String(request?.type || 'Support Request').trim();
+                            const ticketLabel = request?.ticketId || request?.id || '';
+                            const submittedAt = request?.createdAt
+                                ? new Date(request.createdAt).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+                                : 'Unknown date';
+                            const originalMessage = String(request?.message || '(No message provided)').trim();
+                            const divider = '\n\n---\n';
+                            const quotedOriginal = [
+                                'Original support message',
+                                `Ticket: ${ticketLabel}`,
+                                `From: ${patientName}${request?.email ? ' <' + request.email + '>' : ''}`,
+                                `Submitted: ${submittedAt}`,
+                                `Concern: ${concernType}`,
+                                '',
+                                originalMessage
+                            ].join('\n');
+                            const text = `${replyText.trim()}${divider}${quotedOriginal}`;
+                            const html = [
+                                '<div style="font-family:Arial,sans-serif;line-height:1.6;color:#1f2937;">',
+                                `<p style="white-space:pre-wrap;margin:0 0 16px;">${escapeHtml(replyText.trim()).replace(/\n/g, '<br>')}</p>`,
+                                '<hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;">',
+                                '<p style="margin:0 0 8px;font-size:13px;color:#64748b;"><strong>Original support message</strong></p>',
+                                `<p style="margin:0 0 4px;font-size:13px;color:#64748b;"><strong>Ticket:</strong> ${escapeHtml(ticketLabel)}</p>`,
+                                `<p style="margin:0 0 4px;font-size:13px;color:#64748b;"><strong>From:</strong> ${escapeHtml(patientName)}${request?.email ? ' &lt;' + escapeHtml(request.email) + '&gt;' : ''}</p>`,
+                                `<p style="margin:0 0 4px;font-size:13px;color:#64748b;"><strong>Submitted:</strong> ${escapeHtml(submittedAt)}</p>`,
+                                `<p style="margin:0 0 12px;font-size:13px;color:#64748b;"><strong>Concern:</strong> ${escapeHtml(concernType)}</p>`,
+                                `<blockquote style="margin:0;padding:12px 16px;border-left:4px solid #94a3b8;background:#f8fafc;white-space:pre-wrap;">${escapeHtml(originalMessage).replace(/\n/g, '<br>')}</blockquote>`,
+                                '</div>'
+                            ].join('');
+                            return { text, html };
+                        }
 
                         // Send reply from compose modal
                         async function sendSupportReply(){
                             const toEl = document.getElementById('replyToEmail');
                             const subjEl = document.getElementById('replySubject');
                             const bodyEl = document.getElementById('replyBody');
+                            const replyModal = document.getElementById('supportReplyModal');
                             if(!toEl || !subjEl || !bodyEl) return alert('Reply form not found');
                             const to = String(toEl.value || '').trim();
                             const subj = String(subjEl.value || '').trim();
-                            const body = String(bodyEl.value || '').trim();
+                            const replyText = String(bodyEl.value || '').trim();
                             if(!to) return alert('Recipient email missing');
+                            if(!replyText) return alert('Please write a reply before sending.');
 
-                            // determine ticket id (prefer selectedRequest)
-                            let ticketId = null;
-                            if (selectedRequest && selectedRequest.email === to) ticketId = selectedRequest.id;
-                            if (!ticketId && viewModal && viewModal.dataset && viewModal.dataset.selectedId) ticketId = viewModal.dataset.selectedId;
-                            if (!ticketId) {
-                                const ticketMatch = requests.find(r=>r.email === to && (body || '').includes(r.id));
-                                if (ticketMatch) ticketId = ticketMatch.id;
+                            let ticketId = (replyModal && replyModal.dataset && replyModal.dataset.ticketId) || (selectedRequest && selectedRequest.id) || null;
+                            const requestRecord = ticketId ? requests.find(r => r.id === ticketId) : selectedRequest;
+                            const emailPayload = buildSupportReplyEmailPayload(to, subj, replyText, requestRecord);
+
+                            const sendBtn = document.getElementById('sendSupportReplyBtn');
+                            if (sendBtn) {
+                                sendBtn.disabled = true;
+                                sendBtn.textContent = 'Sending...';
                             }
 
-                            // Try to send via Firestore 'mail' (Trigger Email extension) like booking flow
                             try{
                                 if(!window.db || typeof window.db.collection !== 'function') throw new Error('Firestore unavailable');
                                 const mailRef = await window.db.collection('mail').add({
                                     to: to,
                                     message: {
-                                        subject: subj || 'Support Reply from RayGain',
-                                        text: body || ''
+                                        subject: subj || 'Support Reply from RayGain Physiotherapy Clinic',
+                                        text: emailPayload.text,
+                                        html: emailPayload.html
                                     },
                                     createdAt: new Date().toISOString(),
                                     source: 'therapist-dashboard-supportReply',
                                     supportRequestId: ticketId || null
                                 });
 
-                                // wait for delivery status (reuse waitForMailDeliveryStatus if available)
                                 let deliveryState = 'PENDING';
                                 let deliveryError = '';
-                                if (typeof waitForMailDeliveryStatus === 'function'){
-                                    const status = await waitForMailDeliveryStatus(mailRef.id, 30000);
+                                const waitFn = window.waitForMailDeliveryStatus;
+                                if (typeof waitFn === 'function'){
+                                    const status = await waitFn(mailRef.id, 30000);
                                     deliveryState = status.state || 'PENDING';
                                     deliveryError = status.error || '';
                                 }
 
-                                // record reply metadata on support request
                                 if(ticketId){
-                                    const update = { lastRepliedAt: new Date().toISOString(), replySent: true, mailDocId: mailRef.id, replyDeliveryState: deliveryState };
+                                    const update = {
+                                        lastRepliedAt: new Date().toISOString(),
+                                        replySent: true,
+                                        mailDocId: mailRef.id,
+                                        replyDeliveryState: deliveryState,
+                                        lastReplySubject: subj,
+                                        lastReplyPreview: replyText.slice(0, 280)
+                                    };
                                     if(deliveryError) update.replyDeliveryError = deliveryError;
                                     await window.db.collection('supportRequests').doc(ticketId).set(update, { merge:true });
                                     await loadSupportRequests();
                                 }
 
-                                // show result to user
                                 if(deliveryState === 'SUCCESS'){
-                                    alert('Reply sent via Trigger Email and delivered successfully.');
+                                    alert('Reply sent successfully via Trigger Email.');
                                 } else if (deliveryState === 'ERROR'){
-                                    alert('Reply saved to Trigger Email but delivery failed: ' + (deliveryError||'Unknown error') + '\nOpening mail client as fallback.');
-                                    window.location = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
+                                    alert('Reply was queued but delivery failed: ' + (deliveryError || 'Unknown error') + '\nCheck Firebase Trigger Email SMTP settings.');
                                 } else {
-                                    alert('Reply queued via Trigger Email (delivery pending).');
+                                    alert('Reply queued via Trigger Email. Delivery is still pending.');
                                 }
+                                closeSupportReplyModal();
                             }catch(e){
-                                console.warn('Trigger Email failed, falling back to mailto:', e);
-                                try{ window.location = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`; }catch(err){ console.warn('Failed to open mail client', err); }
-                                // still attempt to record lastRepliedAt if we have a ticketId
-                                try{ if(ticketId && window.db && typeof window.db.collection === 'function') { await window.db.collection('supportRequests').doc(ticketId).set({ lastRepliedAt: new Date().toISOString() }, { merge:true }); await loadSupportRequests(); } }catch(err){ console.warn('Failed to record reply timestamp after fallback', err); }
+                                console.error('Support reply send failed:', e);
+                                alert('Failed to send reply: ' + (e.message || 'Unknown error'));
+                            } finally {
+                                if (sendBtn) {
+                                    sendBtn.disabled = false;
+                                    sendBtn.textContent = 'Send Email';
+                                }
                             }
-
-                            // close modal
-                            const replyModal = document.getElementById('supportReplyModal');
-                            if(replyModal){ replyModal.classList.add('hidden'); replyModal.setAttribute('aria-hidden','true'); }
                         }
 
                         try{ window.sendSupportReply = sendSupportReply; }catch(e){}
@@ -1328,9 +1431,9 @@
                         if(markResolvedBtn) markResolvedBtn.onclick = async ()=>{ if(selectedRequest) await markResolved(selectedRequest.id); };
                         if(deleteBtn) deleteBtn.onclick = async ()=>{ if(selectedRequest) await deleteRequest(selectedRequest.id); };
                         if(replyBtn) replyBtn.onclick = ()=>{
-                            if(selectedRequest) return replyToRequest(selectedRequest.id);
+                            if(selectedRequest) return openSupportReplyModal(selectedRequest.id);
                             const fallbackId = (viewModal && viewModal.dataset && viewModal.dataset.selectedId) ? viewModal.dataset.selectedId : null;
-                            if(fallbackId) return replyToRequest(fallbackId);
+                            if(fallbackId) return openSupportReplyModal(fallbackId);
                             alert('No support request selected to reply to. Open a request first.');
                         };
 
@@ -1339,9 +1442,10 @@
                         const closeReplyBtn = document.getElementById('closeSupportReplyModal');
                         const cancelReplyBtn = document.getElementById('cancelSupportReplyBtn');
                         const sendReplyBtn = document.getElementById('sendSupportReplyBtn');
-                        if(closeReplyBtn) closeReplyBtn.onclick = ()=>{ if(replyModalEl){ replyModalEl.classList.add('hidden'); replyModalEl.setAttribute('aria-hidden','true'); } };
-                        if(cancelReplyBtn) cancelReplyBtn.onclick = ()=>{ if(replyModalEl){ replyModalEl.classList.add('hidden'); replyModalEl.setAttribute('aria-hidden','true'); } };
+                        if(closeReplyBtn) closeReplyBtn.onclick = closeSupportReplyModal;
+                        if(cancelReplyBtn) cancelReplyBtn.onclick = closeSupportReplyModal;
                         if(sendReplyBtn) sendReplyBtn.onclick = async ()=>{ await sendSupportReply(); };
+                        if(replyModalEl) replyModalEl.onclick = (e)=>{ if(e.target === replyModalEl) closeSupportReplyModal(); };
 
                         if(supportSearch) supportSearch.addEventListener('input', ()=> renderSupportTable());
                         if(supportFilter) supportFilter.addEventListener('change', ()=> renderSupportTable());
@@ -7941,6 +8045,7 @@ const archiveSelectAllMap = {
         }
         return { state: 'PENDING', error: '', delivery: null };
     }
+    window.waitForMailDeliveryStatus = waitForMailDeliveryStatus;
 
     async function sendInquiryConfirmationEmail(inquiryId, inquiryData) {
         const recipientEmail = getInquiryRecipientEmail(inquiryData);
