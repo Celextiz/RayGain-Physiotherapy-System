@@ -1360,7 +1360,7 @@
                             const firestore = window.db;
                             if(!firestore || typeof firestore.collection !== 'function') return;
                             firestore.collection('supportRequests').onSnapshot(function () {
-                                loadSupportRequests();
+                                scheduleSupportRequestsRefresh();
                             }, function (err) {
                                 console.warn('Support requests listener error:', err);
                             });
@@ -1543,6 +1543,11 @@
                         <!-- Patient rows will be populated here -->
                     </tbody>
                 </table>
+                <div style="display:flex;justify-content:flex-end;align-items:center;margin-top:12px;gap:12px;">
+                    <button id="patientsPrevBtn" class="btn" style="background:#0f7b86;color:#fff;border:none;border-radius:4px;padding:6px 12px;cursor:pointer;font-size:0.9rem;">&lt; Prev</button>
+                    <span id="patientsPageInfo" style="font-size:0.9rem;color:#666;min-width:80px;text-align:center;">Page 1/1</span>
+                    <button id="patientsNextBtn" class="btn" style="background:#0f7b86;color:#fff;border:none;border-radius:4px;padding:6px 12px;cursor:pointer;font-size:0.9rem;">Next &gt;</button>
+                </div>
             </section>
 
         <!-- ADD PATIENT MODAL -->
@@ -4145,6 +4150,11 @@
                         <!-- Inquiry rows will be populated here -->
                     </tbody>
                 </table>
+                <div style="display:flex;justify-content:flex-end;align-items:center;margin-top:12px;gap:12px;">
+                    <button id="inquiriesPrevBtn" class="btn" style="background:#0f7b86;color:#fff;border:none;border-radius:4px;padding:6px 12px;cursor:pointer;font-size:0.9rem;">&lt; Prev</button>
+                    <span id="inquiriesPageInfo" style="font-size:0.9rem;color:#666;min-width:80px;text-align:center;">Page 1/1</span>
+                    <button id="inquiriesNextBtn" class="btn" style="background:#0f7b86;color:#fff;border:none;border-radius:4px;padding:6px 12px;cursor:pointer;font-size:0.9rem;">Next &gt;</button>
+                </div>
             </section>
             </main>
 
@@ -4219,6 +4229,18 @@
     window.db = db;
     // Avoid Firestore WebChannel issues (often seen as /Write/channel errors) on some networks/browsers.
     try { db.settings({ experimentalForceLongPolling: true, useFetchStreams: false, merge: true }); } catch (e) {}
+    try {
+        if (typeof db.enablePersistence === 'function') {
+            window.__firestorePersistencePromise = db.enablePersistence({ synchronizeTabs: true }).catch(function (error) {
+                if (error && error.code !== 'failed-precondition' && error.code !== 'unimplemented') {
+                    console.warn('Firestore persistence unavailable:', error);
+                }
+                return null;
+            });
+        }
+    } catch (error) {
+        console.warn('Could not enable Firestore persistence:', error);
+    }
 
     const AUTH_SESSION_KEY = 'raygainTherapistAuth';
     const LEGACY_AUTH_SESSION_KEY = 'therapistAuth';
@@ -4364,20 +4386,6 @@
         forceDashboardRowLayout();
         // start realtime subscriptions for clinic demand
         try { subscribeClinicDemandRealtime(); } catch (e) { console.warn(e); }
-        // Auto-seed demo data if appointments are few
-        (async () => {
-            try {
-                if (window.db && typeof window.db.collection === 'function') {
-                    const apptSnap = await window.db.collection('appointments').get();
-                    const apptCount = apptSnap ? apptSnap.size || 0 : 0;
-                    if (apptCount < 10) {
-                        await window.seedDemoPatients(10);
-                    }
-                }
-            } catch (e) {
-                console.warn('auto-seed failed', e);
-            }
-        })();
     });
 
     function forceDashboardRowLayout() {
@@ -4516,7 +4524,6 @@
             }
             if (typeof window.openScheduleModalForReschedule === 'function') {
                 await window.openScheduleModalForReschedule(appointmentData);
-                return;
             }
 
             // Fallback: open the schedule modal directly even if calendar script is not ready yet.
@@ -4871,6 +4878,18 @@
         showSection(targetSection);
     })();
 
+    // Pagination state for Patients
+    let patientsCurrentPage = 1;
+    let patientsTotalPages = 1;
+    let patientsAllData = [];
+    const PATIENTS_PER_PAGE = 10;
+
+    // Pagination state for Inquiries
+    let inquiriesCurrentPage = 1;
+    let inquiriesTotalPages = 1;
+    let inquiriesAllData = [];
+    const INQUIRIES_PER_PAGE = 10;
+
     // Load Patients
     async function loadPatients() {
         try {
@@ -4888,7 +4907,30 @@
                 return;
             }
 
-            preparedPatients.patients.forEach(entry => {
+            patientsAllData = preparedPatients.patients;
+            patientsTotalPages = Math.ceil(patientsAllData.length / PATIENTS_PER_PAGE) || 1;
+            patientsCurrentPage = 1;
+            renderPatientsPage();
+
+            if (preparedPatients.duplicateDocIds.length) {
+                await removeDuplicatePatientsFromFirestore(preparedPatients.duplicateDocIds);
+                await loadPatients();
+                return;
+            }
+        } catch (error) {
+            console.error('Error loading patients:', error);
+        }
+    }
+
+    function renderPatientsPage() {
+        const patientsTableBody = document.getElementById('patientsTableBody');
+        const startIdx = (patientsCurrentPage - 1) * PATIENTS_PER_PAGE;
+        const endIdx = startIdx + PATIENTS_PER_PAGE;
+        const pageData = patientsAllData.slice(startIdx, endIdx);
+
+        patientsTableBody.innerHTML = '';
+
+        pageData.forEach(entry => {
                 const patient = entry.patient;
                 const doc = entry.doc;
                 const row = document.createElement('tr');
@@ -4910,14 +4952,16 @@
                 patientsTableBody.appendChild(row);
             });
 
-            if (preparedPatients.duplicateDocIds.length) {
-                await removeDuplicatePatientsFromFirestore(preparedPatients.duplicateDocIds);
-                await loadPatients();
-                return;
-            }
-        } catch (error) {
-            console.error('Error loading patients:', error);
-        }
+            updatePatientsPageInfo();
+    }
+
+    function updatePatientsPageInfo() {
+        const pageInfoEl = document.getElementById('patientsPageInfo');
+        const prevBtn = document.getElementById('patientsPrevBtn');
+        const nextBtn = document.getElementById('patientsNextBtn');
+        if (pageInfoEl) pageInfoEl.textContent = `Page ${patientsCurrentPage}/${patientsTotalPages}`;
+        if (prevBtn) prevBtn.disabled = patientsCurrentPage <= 1;
+        if (nextBtn) nextBtn.disabled = patientsCurrentPage >= patientsTotalPages;
     }
 
     function normalizePatientText(value) {
@@ -8168,10 +8212,35 @@ const archiveSelectAllMap = {
     function renderPendingInquiriesTable(snapshot) {
         const inquiriesTableBody = document.getElementById('inquiriesTableBody');
         if (!inquiriesTableBody) return;
-        inquiriesTableBody.innerHTML = '';
+
+        inquiriesAllData = [];
         snapshot.forEach(doc => {
-                const inquiry = doc.data();
-                if (!isPendingInquiryRecord(inquiry)) return;
+            const inquiry = doc.data();
+            if (!isPendingInquiryRecord(inquiry)) return;
+            inquiriesAllData.push({ doc, inquiry });
+        });
+
+        inquiriesTotalPages = Math.ceil(inquiriesAllData.length / INQUIRIES_PER_PAGE) || 1;
+        inquiriesCurrentPage = 1;
+        renderInquiriesPage();
+        setupInquiriesEventHandlers();
+    }
+
+    function renderInquiriesPage() {
+        const inquiriesTableBody = document.getElementById('inquiriesTableBody');
+        const startIdx = (inquiriesCurrentPage - 1) * INQUIRIES_PER_PAGE;
+        const endIdx = startIdx + INQUIRIES_PER_PAGE;
+        const pageData = inquiriesAllData.slice(startIdx, endIdx);
+
+        inquiriesTableBody.innerHTML = '';
+
+        if (pageData.length === 0) {
+            inquiriesTableBody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:#666;">No pending patients found</td></tr>';
+            updateInquiriesPageInfo();
+            return;
+        }
+
+        pageData.forEach(({ doc, inquiry }) => {
                 // Get emergency contact phone number from the emergency contact information
                 const emergencyContactPhone = inquiry.emergencyContactPhone || inquiry.emergencyContactNumber || '';
                 
@@ -8204,16 +8273,29 @@ const archiveSelectAllMap = {
                     <td>${inquiry.age || ''}</td>
                     <td>${getInquiryCaseCondition(inquiry)}</td>
                     <td>${emergencyContactPhone}</td>
-                    <td style="display:flex;gap:8px;flex-wrap:wrap;">
-                        <button data-id="${doc.id}" class="confirmInquiryBtn" style="padding:8px 16px;background:${emailBtnColor};color:white;border:none;border-radius:4px;cursor:${emailBtnDisabled ? 'not-allowed' : 'pointer'};font-size:0.9rem;" ${emailBtnDisabled ? 'disabled' : ''}>${emailBtnLabel}</button>
-                        <button data-id="${doc.id}" class="addPatientBtn" style="padding:8px 16px;background:#4CAF50;color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.9rem;">Add Patient</button>
-                        <button onclick="deleteInquiry('${doc.id}')" style="padding:8px 16px;background:#f44336;color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.9rem;">Delete</button>
+                    <td style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center;">
+                        <button data-id="${doc.id}" class="confirmInquiryBtn" style="width:40px;height:40px;padding:0;background:#1976d2;color:white;border:none;border-radius:6px;cursor:${emailBtnDisabled ? 'not-allowed' : 'pointer'};font-size:1.2rem;display:flex;align-items:center;justify-content:center;transition:all 0.2s;" title="Confirm Inquiry" ${emailBtnDisabled ? 'disabled' : ''}>✓</button>
+                        <button data-id="${doc.id}" class="addPatientBtn" style="width:40px;height:40px;padding:0;background:#4CAF50;color:white;border:none;border-radius:6px;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;transition:all 0.2s;" title="Add Patient">+</button>
+                        <button onclick="deleteInquiry('${doc.id}')" style="width:40px;height:40px;padding:0;background:#f44336;color:white;border:none;border-radius:6px;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;transition:all 0.2s;" title="Delete">🗑</button>
                     </td>
                 `;
                 inquiriesTableBody.appendChild(row);
             });
 
-            document.querySelectorAll('.confirmInquiryBtn').forEach(function(btn){
+            updateInquiriesPageInfo();
+    }
+
+    function updateInquiriesPageInfo() {
+        const pageInfoEl = document.getElementById('inquiriesPageInfo');
+        const prevBtn = document.getElementById('inquiriesPrevBtn');
+        const nextBtn = document.getElementById('inquiriesNextBtn');
+        if (pageInfoEl) pageInfoEl.textContent = `Page ${inquiriesCurrentPage}/${inquiriesTotalPages}`;
+        if (prevBtn) prevBtn.disabled = inquiriesCurrentPage <= 1;
+        if (nextBtn) nextBtn.disabled = inquiriesCurrentPage >= inquiriesTotalPages;
+    }
+
+    function setupInquiriesEventHandlers() {
+        document.querySelectorAll('.confirmInquiryBtn').forEach(function(btn){
                 btn.onclick = async function() {
                     const id = btn.getAttribute('data-id');
                     if (!id) return;
@@ -8350,6 +8432,49 @@ const archiveSelectAllMap = {
             filterPendingInquiriesTable();
     }
 
+    // Bind inquiries pagination buttons
+    document.addEventListener('DOMContentLoaded', () => {
+        const inquiriesPrevBtn = document.getElementById('inquiriesPrevBtn');
+        const inquiriesNextBtn = document.getElementById('inquiriesNextBtn');
+        const patientsPrevBtn = document.getElementById('patientsPrevBtn');
+        const patientsNextBtn = document.getElementById('patientsNextBtn');
+
+        if (inquiriesPrevBtn) {
+            inquiriesPrevBtn.onclick = () => {
+                if (inquiriesCurrentPage > 1) {
+                    inquiriesCurrentPage--;
+                    renderInquiriesPage();
+                    setupInquiriesEventHandlers();
+                }
+            };
+        }
+        if (inquiriesNextBtn) {
+            inquiriesNextBtn.onclick = () => {
+                if (inquiriesCurrentPage < inquiriesTotalPages) {
+                    inquiriesCurrentPage++;
+                    renderInquiriesPage();
+                    setupInquiriesEventHandlers();
+                }
+            };
+        }
+        if (patientsPrevBtn) {
+            patientsPrevBtn.onclick = () => {
+                if (patientsCurrentPage > 1) {
+                    patientsCurrentPage--;
+                    renderPatientsPage();
+                }
+            };
+        }
+        if (patientsNextBtn) {
+            patientsNextBtn.onclick = () => {
+                if (patientsCurrentPage < patientsTotalPages) {
+                    patientsCurrentPage++;
+                    renderPatientsPage();
+                }
+            };
+        }
+    });
+
     window.isPendingInquiryRecord = isPendingInquiryRecord;
     window.isPendingBadgeInquiry = isPendingBadgeInquiry;
     window.renderPendingInquiriesTable = renderPendingInquiriesTable;
@@ -8362,7 +8487,6 @@ const archiveSelectAllMap = {
             renderPendingInquiriesTable(snapshot);
             updatePendingPatientsBadge(snapshot);
             await updateNotificationArea(snapshot);
-            await updateRayGainAnalytics();
         } catch (error) {
             console.error('Error loading inquiries:', error);
         }
@@ -8886,113 +9010,7 @@ const archiveSelectAllMap = {
         return createdCount;
     }
 
-    async function acceptPendingInquiriesSilentlySkippingReal() {
-        const snapshot = await db.collection('inquiries').get();
-        let acceptedCount = 0;
-
-        for (const doc of snapshot.docs) {
-            const inquiry = doc.data() || {};
-            if (inquiry.isDeleted || inquiry.status === 'accepted') continue;
-            if (isProtectedRealPatient(inquiry)) continue;
-            if (!hasConfirmationEmailSent(inquiry)) continue;
-
-            const resolvedCaseHistory = getInquiryCaseCondition(inquiry);
-
-            if (inquiry.isReturningPatient && inquiry.previousPatientDocId) {
-                await db.collection('patients').doc(inquiry.previousPatientDocId).set({
-                    status: 'active',
-                    reactivatedAt: new Date().toISOString(),
-                    age: inquiry.age || '',
-                    contact: inquiry.contactNumber || '',
-                    caseHistory: resolvedCaseHistory,
-                    address: inquiry.address || '',
-                    barangay: inquiry.barangay || '',
-                    municipality: inquiry.municipality || '',
-                    provinceCity: inquiry.provinceCity || '',
-                    emergencyContactName: inquiry.emergencyContactName || '',
-                    emergencyContactPhone: inquiry.emergencyContactPhone || inquiry.emergencyContactNumber || '',
-                    updatedAt: new Date().toISOString()
-                }, { merge: true });
-                await db.collection('inquiries').doc(doc.id).delete();
-                acceptedCount += 1;
-                continue;
-            }
-
-            const patientId = await generateNextPatientId();
-            const passcode = Math.floor(100000 + Math.random() * 900000).toString();
-            const patientData = {
-                patientId,
-                firstName: inquiry.firstName || '',
-                middleName: inquiry.middleName || '',
-                lastName: inquiry.lastName || '',
-                age: inquiry.age || '',
-                contact: inquiry.contactNumber || '',
-                caseHistory: resolvedCaseHistory,
-                address: inquiry.address || '',
-                barangay: inquiry.barangay || '',
-                municipality: inquiry.municipality || '',
-                provinceCity: inquiry.provinceCity || '',
-                emergencyContactName: inquiry.emergencyContactName || '',
-                emergencyContactPhone: inquiry.emergencyContactPhone || inquiry.emergencyContactNumber || '',
-                passcode,
-                previousPatientId: inquiry.previousPatientId || null,
-                status: 'active',
-                createdAt: new Date().toISOString()
-            };
-
-            await db.collection('patients').add(patientData);
-            await db.collection('inquiries').doc(doc.id).delete();
-            acceptedCount += 1;
-        }
-
-        return acceptedCount;
-    }
-
-    async function runDummyPatientDataSeeding() {
-        const seedKey = 'raygainDummySeedRunV1';
-        try {
-            if (sessionStorage.getItem(seedKey) === 'done') return;
-        } catch (e) {
-            // Ignore storage read errors.
-        }
-
-        try {
-            const accepted = await acceptPendingInquiriesSilentlySkippingReal();
-
-            const patientsSnapshot = await db.collection('patients').get();
-            let touchedPatients = 0;
-            let createdRecords = 0;
-
-            for (const doc of patientsSnapshot.docs) {
-                const patient = doc.data() || {};
-                if (patient.isDeleted) continue;
-                if (isProtectedRealPatient(patient)) continue;
-                touchedPatients += 1;
-                createdRecords += await ensureDummyRecordsForPatient(doc.id, patient);
-            }
-
-            await loadPendingInquiries();
-            await loadPatients();
-            await updateRayGainAnalytics();
-
-            const summary = `Dummy seeding complete. Accepted pending: ${accepted}. Patients processed: ${touchedPatients}. Records created: ${createdRecords}. Ronald Pacio Cruz remains untouched.`;
-            console.log(summary);
-            showInfoModal(summary, 'Dummy Data Ready');
-
-            try {
-                sessionStorage.setItem(seedKey, 'done');
-            } catch (e) {
-                // Ignore storage write errors.
-            }
-        } catch (error) {
-            console.error('Dummy seeding failed:', error);
-            showInfoModal('Dummy data seeding failed. Check console for details.', 'Dummy Data Error');
-        }
-    }
-
-    setTimeout(() => {
-        runDummyPatientDataSeeding();
-    }, 800);
+    // Dummy seeding is disabled; the dashboard now works only with existing real patient and inquiry data.
 
     // Soft-delete Inquiry
     window.deleteInquiry = async function(inquiryId) {
@@ -12853,6 +12871,31 @@ const archiveSelectAllMap = {
 
 
 
+    let analyticsRefreshTimer = null;
+    let supportRequestsRefreshTimer = null;
+
+    function scheduleAnalyticsRefresh() {
+        if (analyticsRefreshTimer) clearTimeout(analyticsRefreshTimer);
+        analyticsRefreshTimer = setTimeout(() => {
+            analyticsRefreshTimer = null;
+            updateRayGainAnalytics().catch((error) => {
+                console.warn('Analytics refresh failed:', error);
+            });
+        }, 150);
+    }
+
+    function scheduleSupportRequestsRefresh() {
+        if (supportRequestsRefreshTimer) clearTimeout(supportRequestsRefreshTimer);
+        supportRequestsRefreshTimer = setTimeout(() => {
+            supportRequestsRefreshTimer = null;
+            if (typeof window.refreshSupportRequests === 'function') {
+                window.refreshSupportRequests().catch((error) => {
+                    console.warn('Support requests refresh failed:', error);
+                });
+            }
+        }, 120);
+    }
+
     // Consolidated initializer
     async function init() {
         console.log('init: starting');
@@ -12906,18 +12949,23 @@ const archiveSelectAllMap = {
         try { renderCalendar(currentMonth); } catch (e) { console.warn('init: renderCalendar failed', e); }
         // Load core data
         try {
-            await cleanupDuplicatePatients();
-            await loadPatients();
-        } catch (e) { console.warn('init: loadPatients failed', e); }
-        try { await loadPendingInquiries(); } catch (e) { console.warn('init: loadPendingInquiries failed', e); }
+            cleanupDuplicatePatients().catch((error) => console.warn('init: cleanupDuplicatePatients failed', error));
+        } catch (e) { console.warn('init: cleanupDuplicatePatients failed', e); }
+        try {
+            const initialDataTasks = [
+                loadPatients(),
+                loadPendingInquiries(),
+                updateRayGainAnalytics(),
+                loadArchive(),
+                restorePatientSessionsWorkspace()
+            ];
+            await Promise.allSettled(initialDataTasks);
+        } catch (e) { console.warn('init: initial dashboard data load failed', e); }
         try {
             if (typeof window.subscribeSupportRealtime === 'function') window.subscribeSupportRealtime();
             if (typeof window.refreshSupportRequests === 'function') await window.refreshSupportRequests();
         } catch (e) { console.warn('init: support requests failed', e); }
-        try { await updateRayGainAnalytics(); } catch (e) { console.warn('init: updateRayGainAnalytics failed', e); }
         try { subscribeRecoveryStatusChart(); } catch (e) { console.warn('init: subscribeRecoveryStatusChart failed', e); }
-        try { await loadArchive(); } catch (e) { console.warn('init: loadArchive failed', e); }
-        try { await restorePatientSessionsWorkspace(); } catch (e) { console.warn('init: restorePatientSessionsWorkspace failed', e); }
         
         // Setup single Open Report button
         const openReportBtn = document.getElementById('openReportBtn');
@@ -13504,6 +13552,7 @@ const archiveSelectAllMap = {
             updateNotificationArea(snapshot).catch(function (err) {
                 console.warn('Realtime notification update failed:', err);
             });
+            scheduleAnalyticsRefresh();
         }, function (err) {
             console.warn('Inquiries listener error:', err);
         });
@@ -13515,7 +13564,7 @@ const archiveSelectAllMap = {
     try {
         db.collection('patients').onSnapshot(async function () {
             try {
-                await updateRayGainAnalytics();
+                scheduleAnalyticsRefresh();
             } catch (e) {
                 console.warn('Realtime patients analytics update failed:', e);
             }
@@ -15268,68 +15317,9 @@ function subscribeClinicDemandRealtime() {
     }
 }
 
-// Demo seeder: creates N patients and appointments to simulate clinic demand
-window.seedDemoPatients = async function(count = 10) {
-    if (!window.db || typeof window.db.collection !== 'function') return alert('Firestore not initialized');
-    if (!confirm(`Create ${count} demo patients and appointments?`)) return;
-
-    try {
-        const batch = window.db.batch();
-        const patientRefs = [];
-        for (let i = 1; i <= count; i++) {
-            const pid = String(i).padStart(4, '0') + 'D';
-            const ref = window.db.collection('patients').doc();
-            patientRefs.push({ ref, pid });
-            batch.set(ref, {
-                patientId: pid,
-                firstName: 'Demo'+i,
-                middleName: '',
-                lastName: 'Patient'+i,
-                age: 30 + (i % 10),
-                contact: '0900000' + String(100 + i),
-                caseHistory: 'Demo case',
-                isDeleted: false,
-                createdAt: new Date().toISOString()
-            });
-        }
-
-        // commit patients first
-        await batch.commit();
-
-        // create appointments for the next 7 days, distributing patients across times
-        const apptBatch = window.db.batch();
-        const now = new Date();
-        const times = ['09:00','10:30','13:30','15:00'];
-        let apptCount = 0;
-        patientRefs.forEach((p, idx) => {
-            const apptRef = window.db.collection('appointments').doc();
-            const dayOffset = idx % 7; // spread over next 7 days
-            const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + dayOffset);
-            const time = times[idx % times.length];
-            const [hh,mm] = time.split(':').map(Number);
-            date.setHours(hh, mm, 0, 0);
-            const sessionType = (idx % 4 === 0) ? 'Home' : 'Clinic';
-            apptBatch.set(apptRef, {
-                patientDocId: p.ref.id,
-                patientId: p.pid,
-                patientName: `Demo${idx+1} Patient${idx+1}`,
-                date: date.toISOString(),
-                sessionType: sessionType,
-                serviceType: sessionType,
-                createdAt: new Date().toISOString(),
-                isDeleted: false
-            });
-            apptCount++;
-        });
-
-        await apptBatch.commit();
-        alert(`Seeded ${patientRefs.length} demo patients and ${apptCount} appointments.`);
-        // trigger analytics refresh
-        try { await updateRayGainAnalytics(); } catch (e) { console.warn('update analytics after seed failed', e); }
-    } catch (e) {
-        console.error('Failed to seed demo patients:', e);
-        alert('Failed to seed demo data: ' + (e.message || e));
-    }
+// Demo seeding is disabled to preserve only real patient and appointment records.
+window.seedDemoPatients = function() {
+    return Promise.resolve();
 };
 
 function setupSessionRecoveryForecastControls() {
@@ -15396,14 +15386,25 @@ function resolvePatientTypeLabel(patient, sessions = []) {
 }
 
 async function updateRayGainAnalytics() {
-    // Total Patients
-    let patientsSnapshot = await db.collection('patients').get();
+    // Load the core collections together so the dashboard is not blocked on one query at a time.
+    let [patientsSnapshot, recoverySurveysSnapshot, recoverySessionsSnapshot, inquiriesSnapshot, deletedPatientsSnapshot, deletedSessionsSnapshot, deletedAppointmentsSnapshot, deletedSupportSnapshot, appointmentsSnapshot, releaseFormsSnapshot] = await Promise.all([
+        db.collection('patients').get(),
+        db.collection('sessionSurveys').get(),
+        db.collection('sessions').get(),
+        db.collection('inquiries').get(),
+        db.collection('patients').where('isDeleted', '==', true).get(),
+        db.collection('sessions').where('isDeleted', '==', true).get(),
+        db.collection('appointments').where('isDeleted', '==', true).get(),
+        db.collection('supportRequests').where('isDeleted', '==', true).get(),
+        db.collection('appointments').get(),
+        db.collection('releaseForms').get()
+    ]);
+
     let activePatientDocs = patientsSnapshot.docs.filter(doc => {
         const data = doc.data() || {};
         return !data.isDeleted;
     });
 
-    const recoverySurveysSnapshot = await db.collection('sessionSurveys').get();
     const allSurveys = recoverySurveysSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     const surveysByPatient = {};
     allSurveys.forEach((row) => {
@@ -15416,7 +15417,6 @@ async function updateRayGainAnalytics() {
     window._recoverySurveysCache = allSurveys;
     window._recoveryLatestByPatient = buildLatestRecoveryByPatient(allSurveys);
 
-    const recoverySessionsSnapshot = await db.collection('sessions').get();
     const sessionsByPatient = {};
     recoverySessionsSnapshot.forEach((doc) => {
         const row = doc.data() || {};
@@ -15443,7 +15443,6 @@ async function updateRayGainAnalytics() {
     renderRecoveryPatientPicker();
 
     // Pending Patients
-    const inquiriesSnapshot = await db.collection('inquiries').get();
     window._inquiriesCache = inquiriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
         .filter(row => !row.isDeleted);
     let deletedInquiries = 0;
@@ -15456,15 +15455,11 @@ async function updateRayGainAnalytics() {
     updatePendingPatientsBadge(inquiriesSnapshot);
 
     // Archive badge count (deleted inquiries + deleted patients + deleted sessions + archived canceled appointments)
-    const deletedPatientsSnapshot = await db.collection('patients').where('isDeleted','==', true).get();
-    const deletedSessionsSnapshot = await db.collection('sessions').where('isDeleted','==', true).get();
-    const deletedAppointmentsSnapshot = await db.collection('appointments').where('isDeleted','==', true).get();
     let archivedCanceledAppointmentsCount = 0;
     deletedAppointmentsSnapshot.forEach(doc => {
         const data = doc.data() || {};
         if (data.canceledArchived) archivedCanceledAppointmentsCount++;
     });
-    const deletedSupportSnapshot = await db.collection('supportRequests').where('isDeleted','==', true).get();
     const archiveCount = deletedInquiries + deletedPatientsSnapshot.size + deletedSessionsSnapshot.size + archivedCanceledAppointmentsCount + deletedSupportSnapshot.size;
     const archiveBadge = document.getElementById('archiveBadge');
     if (archiveBadge) {
@@ -15480,7 +15475,6 @@ async function updateRayGainAnalytics() {
     await updateNotificationArea(inquiriesSnapshot);
 
     // Appointments Count (active only; exclude archived/deleted)
-    const appointmentsSnapshot = await db.collection('appointments').get();
     let appointmentsCount = 0;
     appointmentsSnapshot.forEach(doc => {
         const data = doc.data() || {};
@@ -15530,7 +15524,6 @@ async function updateRayGainAnalytics() {
     if (inClinicPatientsEl) inClinicPatientsEl.textContent = inClinicPatientKeys.size;
 
     // Active vs Completed Therapy: completed is sourced from release flow updates.
-    const releaseFormsSnapshot = await db.collection('releaseForms').get();
     const releaseFormPatientIds = new Set(
         releaseFormsSnapshot.docs
             .map(doc => {
@@ -15766,17 +15759,19 @@ async function updateRayGainAnalytics() {
                         display: false
                     },
                     grid: { display: false },
-                    border: { display: false }
+                    border: { display: true, color: '#d8e6ea' }
                 },
                 y: {
                     beginAtZero: true,
                     suggestedMax: maxCaseCount,
                     ticks: {
-                        display: false,
-                        precision: 0
+                        display: true,
+                        precision: 0,
+                        color: '#5f7f8a',
+                        font: { size: 11, weight: '600' }
                     },
-                    grid: { display: false, drawBorder: false },
-                    border: { display: false }
+                    grid: { color: 'rgba(89, 168, 167, 0.12)', drawBorder: false },
+                    border: { display: true, color: '#d8e6ea' }
                 }
             }
         }
